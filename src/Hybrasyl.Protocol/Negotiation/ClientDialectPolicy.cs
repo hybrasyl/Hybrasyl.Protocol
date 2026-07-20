@@ -10,13 +10,13 @@ public readonly record struct ClientDialectPolicy(Dialect Supported)
 {
     /// <summary>
     ///     Resolves the connection mode against <paramref name="offer" />: if this client's single
-    ///     dialect is within the offered range, speak it (<see cref="ConnectionMode.ExtensionOverTls" />);
-    ///     otherwise fall back to retail framing inside TLS
-    ///     (<see cref="ConnectionMode.RetailOverTls" />) - the client cannot downgrade to a
-    ///     different dialect because it only implements one.
+    ///     dialect is within the offered range, engage it
+    ///     (<see cref="ConnectionMode.DialectOverTls" />); otherwise engage no dialect and send only
+    ///     retail frames inside TLS (<see cref="ConnectionMode.RetailOverTls" />) - the client
+    ///     cannot downgrade to a different dialect because it only implements one.
     /// </summary>
     public DialectResolution Resolve(DialectOffer offer) =>
         offer.Contains(Supported)
-            ? DialectResolution.Extension(Supported)
+            ? DialectResolution.Engaged(Supported)
             : DialectResolution.RetailOverTls;
 }

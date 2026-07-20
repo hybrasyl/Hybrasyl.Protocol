@@ -2,37 +2,30 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using DALib.Networking.Wire;
 
 namespace Hybrasyl.Protocol.Wire;
 
 /// <summary>
 ///     Builds the two <see cref="ExtensionDispatchTable" />s (C-&gt;S and S-&gt;C) by scanning
-///     assemblies for both retail DALib packets and native extension packets.
+///     assemblies for declared extension packets.
 /// </summary>
 /// <remarks>
 ///     <para>
-///         This reimplements the scan-and-bind pattern DALib uses internally, over DALib's
-///         <em>public</em> surface: DALib's <c>PacketDispatchBuilder</c>, its parse delegate, and
-///         its frame constants are all <c>internal</c>, and <c>PacketCodec</c>'s public entry
-///         points parse whole <c>0xAA</c> frames, not bare bodies. Reimplementing here keeps DALib
-///         genuinely unchanged, which the canonicality ruling requires.
+///         Only <em>declared</em> extension packets are registered - new packets (<c>0x0100+</c>)
+///         and explicit replacements of a retail opcode with an upgraded shape (e.g. a <c>0x0015</c>
+///         that upgrades a field to <c>u16</c>). Un-migrated retail packets are <strong>not</strong>
+///         composed here: they travel as literal <c>0xAA</c> frames on DALib's codec (inside TLS or
+///         not), routed away from the extension codec by the first-byte router. Nothing about the
+///         retail packet set enters this dispatch.
 ///     </para>
 ///     <para>
-///         Retail packets (DALib's <c>[ClientOpcode]</c>/<c>[ServerOpcode]</c>) register at their
-///         byte opcode zero-extended to <c>u16</c>, introduced at signature <c>0xAA</c>. Native
-///         extension packets register at their <c>u16</c> opcode and their declared
-///         <c>Since</c> dialect.
+///         The scan-and-bind mirrors DALib's own internal pattern (its builder and delegate are
+///         <c>internal</c>), binding each type's public
+///         <c>static T Parse(ReadOnlySpan&lt;byte&gt;)</c>.
 ///     </para>
 /// </remarks>
 internal static class ExtensionDispatchBuilder
 {
-    private const byte RetailIntroSignature = 0xAA;
-
-    private delegate IPacket RetailParseFn(ReadOnlySpan<byte> body);
-
-    private delegate IExtensionPacket ExtensionParseFn(ReadOnlySpan<byte> body);
-
     internal static (ExtensionDispatchTable Client, ExtensionDispatchTable Server) Build(
         IEnumerable<Assembly> assemblies)
     {
@@ -48,14 +41,9 @@ internal static class ExtensionDispatchBuilder
                 if (type is null)
                     continue;
 
-                AddRetail<ClientOpcodeAttribute, IClientPacket>(
-                    client, type, attr => attr.Opcode);
-                AddRetail<ServerOpcodeAttribute, IServerPacket>(
-                    server, type, attr => attr.Opcode);
-
-                AddExtension<ExtensionClientOpcodeAttribute, IExtensionClientPacket>(
+                Add<ExtensionClientOpcodeAttribute, IExtensionClientPacket>(
                     client, type, attr => attr.Opcode, attr => attr.Since);
-                AddExtension<ExtensionServerOpcodeAttribute, IExtensionServerPacket>(
+                Add<ExtensionServerOpcodeAttribute, IExtensionServerPacket>(
                     server, type, attr => attr.Opcode, attr => attr.Since);
             }
         }
@@ -63,33 +51,7 @@ internal static class ExtensionDispatchBuilder
         return (client, server);
     }
 
-    private static void AddRetail<TAttribute, TMarker>(
-        ExtensionDispatchTable table,
-        Type type,
-        Func<TAttribute, byte> opcodeOf)
-        where TAttribute : Attribute
-        where TMarker : IPacket
-    {
-        var attr = type.GetCustomAttribute<TAttribute>(inherit: false);
-
-        if (attr is null)
-            return;
-
-        var opcode = opcodeOf(attr);
-
-        if (!typeof(TMarker).IsAssignableFrom(type))
-            throw new InvalidOperationException(
-                $"{type.FullName} carries {typeof(TAttribute).Name} for opcode 0x{opcode:X2} " +
-                $"but does not implement {typeof(TMarker).Name}.");
-
-        var parse = BindParse<RetailParseFn>(type, typeof(IPacket));
-
-        DecodedPacket Decode(ReadOnlySpan<byte> body) => DecodedPacket.FromRetail(parse(body));
-
-        table.Add(opcode, RetailIntroSignature, Decode, type.FullName ?? type.Name);
-    }
-
-    private static void AddExtension<TAttribute, TMarker>(
+    private static void Add<TAttribute, TMarker>(
         ExtensionDispatchTable table,
         Type type,
         Func<TAttribute, ushort> opcodeOf,
@@ -110,29 +72,24 @@ internal static class ExtensionDispatchBuilder
                 $"{type.FullName} carries {typeof(TAttribute).Name} for opcode 0x{opcode:X4} " +
                 $"but does not implement {typeof(TMarker).Name}.");
 
-        var parse = BindParse<ExtensionParseFn>(type, typeof(IExtensionPacket));
-
-        DecodedPacket Decode(ReadOnlySpan<byte> body) => DecodedPacket.FromExtension(parse(body));
-
-        table.Add(opcode, introSignature, Decode, type.FullName ?? type.Name);
+        table.Add(opcode, introSignature, BindParse(type), type.FullName ?? type.Name);
     }
 
-    private static TDelegate BindParse<TDelegate>(Type type, Type requiredReturn)
-        where TDelegate : Delegate
+    private static ExtensionDecodeFn BindParse(Type type)
     {
         var parseMethod = type.GetMethod(
             "Parse",
             BindingFlags.Public | BindingFlags.Static | BindingFlags.DeclaredOnly,
             [typeof(ReadOnlySpan<byte>)]);
 
-        if (parseMethod is null || !requiredReturn.IsAssignableFrom(parseMethod.ReturnType))
+        if (parseMethod is null || !typeof(IExtensionPacket).IsAssignableFrom(parseMethod.ReturnType))
             throw new InvalidOperationException(
-                $"{type.FullName} is registered as a packet but does not declare " +
-                $"'public static {requiredReturn.Name} Parse(ReadOnlySpan<byte>)'.");
+                $"{type.FullName} is registered as an extension packet but does not declare " +
+                $"'public static {type.Name} Parse(ReadOnlySpan<byte>)'.");
 
-        // Return-type covariance: the method returns a concrete packet; the delegate returns the
+        // Return-type covariance: Parse returns the concrete type; the delegate returns the
         // interface. CreateDelegate accepts this.
-        return (TDelegate)parseMethod.CreateDelegate(typeof(TDelegate));
+        return (ExtensionDecodeFn)parseMethod.CreateDelegate(typeof(ExtensionDecodeFn));
     }
 
     private static IEnumerable<Type?> LoadableTypes(Assembly assembly)

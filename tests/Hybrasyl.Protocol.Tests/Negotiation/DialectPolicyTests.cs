@@ -14,7 +14,7 @@ public class DialectPolicyTests
 
         var resolution = policy.Resolve(offer);
 
-        resolution.Mode.Should().Be(ConnectionMode.ExtensionOverTls);
+        resolution.Mode.Should().Be(ConnectionMode.DialectOverTls);
         resolution.Dialect.Should().Be(Dialect.V1);
     }
 
@@ -59,7 +59,7 @@ public class DialectPolicyTests
     {
         var policy = ServerDialectPolicy.Create(Dialect.V1, (Dialect)0xB2);
 
-        policy.Resolve(Dialect.V1).Mode.Should().Be(ConnectionMode.ExtensionOverTls);
+        policy.Resolve(Dialect.V1).Mode.Should().Be(ConnectionMode.DialectOverTls);
         policy.Resolve((Dialect)0xB3).Mode.Should().Be(ConnectionMode.RetailOverTls);
     }
 
@@ -80,7 +80,7 @@ public class DialectPolicyTests
         var client = new ClientDialectPolicy(Dialect.V1);
 
         var clientResolution = client.Resolve(server.ToOffer());
-        clientResolution.Mode.Should().Be(ConnectionMode.ExtensionOverTls);
+        clientResolution.Mode.Should().Be(ConnectionMode.DialectOverTls);
 
         var serverResolution = server.Resolve(clientResolution.Dialect!.Value);
         serverResolution.Should().Be(clientResolution);

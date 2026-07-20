@@ -34,11 +34,12 @@ public readonly record struct ServerDialectPolicy(Dialect Floor, Dialect Ceiling
     public bool Supports(Dialect dialect) => ToOffer().Contains(dialect);
 
     /// <summary>
-    ///     Resolves the server's view of a client that chose <paramref name="dialect" />: an
-    ///     extension connection if the dialect is supported, otherwise retail framing inside TLS.
+    ///     Resolves the server's view of a client that chose <paramref name="dialect" />: the
+    ///     dialect namespace is engaged if supported, otherwise the connection stays retail-only
+    ///     inside TLS.
     /// </summary>
     public DialectResolution Resolve(Dialect dialect) =>
         Supports(dialect)
-            ? DialectResolution.Extension(dialect)
+            ? DialectResolution.Engaged(dialect)
             : DialectResolution.RetailOverTls;
 }

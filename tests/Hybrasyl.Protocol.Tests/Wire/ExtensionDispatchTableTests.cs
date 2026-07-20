@@ -11,7 +11,7 @@ namespace Hybrasyl.Protocol.Tests.Wire;
 public class ExtensionDispatchTableTests
 {
     private static ExtensionDecodeFn Marker(uint nonce) =>
-        _ => DecodedPacket.FromExtension(new TestPingPacket { Nonce = nonce });
+        _ => new TestPingPacket { Nonce = nonce };
 
     [Fact]
     public void Resolve_ReturnsHighestIntroductionAtOrBelowSignature()
@@ -73,6 +73,6 @@ public class ExtensionDispatchTableTests
         fn.Should().NotBeNull();
         var decoded = fn!(ReadOnlySpan<byte>.Empty);
 
-        return ((TestPingPacket)decoded.Extension!).Nonce;
+        return ((TestPingPacket)decoded).Nonce;
     }
 }

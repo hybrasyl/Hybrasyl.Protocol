@@ -3,8 +3,8 @@ using System.Collections.Generic;
 
 namespace Hybrasyl.Protocol.Wire;
 
-/// <summary>Decodes an extension-frame body into a <see cref="DecodedPacket" />.</summary>
-internal delegate DecodedPacket ExtensionDecodeFn(ReadOnlySpan<byte> body);
+/// <summary>Decodes an extension-frame body into a typed extension packet.</summary>
+internal delegate IExtensionPacket ExtensionDecodeFn(ReadOnlySpan<byte> body);
 
 /// <summary>
 ///     One direction's <c>(signature, opcode) -&gt; decoder</c> table, with latest-wins

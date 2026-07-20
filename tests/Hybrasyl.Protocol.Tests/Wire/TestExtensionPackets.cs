@@ -39,3 +39,25 @@ public sealed record TestPongPacket : ExtensionClientPacket
         return new TestPongPacket { Value = reader.ReadByte() };
     }
 }
+
+/// <summary>
+///     A replacement of retail opcode 0x15 with an upgraded shape (retail's u8 field widened to
+///     u16), carried in the extension space at its zero-extended opcode 0x0015. Demonstrates the
+///     "0xB0 ... 0x15 replacement" case.
+/// </summary>
+[ExtensionServerOpcode(0x0015, Dialect.V1)]
+public sealed record TestUpgradedMapInfoPacket : ExtensionServerPacket
+{
+    public required ushort WidenedField { get; init; }
+
+    public override ushort Opcode => 0x0015;
+
+    public override void WriteBody(IPacketWriter writer) => writer.WriteUInt16(WidenedField);
+
+    public static TestUpgradedMapInfoPacket Parse(ReadOnlySpan<byte> body)
+    {
+        var reader = new PacketReader(body);
+
+        return new TestUpgradedMapInfoPacket { WidenedField = reader.ReadUInt16() };
+    }
+}
