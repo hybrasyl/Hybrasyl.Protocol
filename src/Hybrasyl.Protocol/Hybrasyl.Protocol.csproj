@@ -7,7 +7,7 @@
         <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/hybrasyl/sreang</RepositoryUrl>
         <Tags>hybrasyl; doomvas; darkages; protocol;</Tags>
-        <Version>0.1.0-alpha1</Version>
+        <Version>0.0.1</Version>
 
         <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
         <IsPackable>true</IsPackable>

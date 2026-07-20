@@ -5,38 +5,38 @@ using Hybrasyl.Protocol.Wire;
 namespace Hybrasyl.Protocol.Tests.Wire;
 
 /// <summary>A native S->C extension packet used across the codec tests.</summary>
-[ExtensionServerOpcode(0x0100, Dialect.V1)]
-public sealed record TestPingPacket : ExtensionServerPacket
+[ExtensionServerOpcode(0x0200, Dialect.V1)]
+public sealed record TestServerNoncePacket : ExtensionServerPacket
 {
     public required uint Nonce { get; init; }
 
-    public override ushort Opcode => 0x0100;
+    public override ushort Opcode => 0x0200;
 
     public override void WriteBody(IPacketWriter writer) => writer.WriteUInt32(Nonce);
 
-    public static TestPingPacket Parse(ReadOnlySpan<byte> body)
+    public static TestServerNoncePacket Parse(ReadOnlySpan<byte> body)
     {
         var reader = new PacketReader(body);
 
-        return new TestPingPacket { Nonce = reader.ReadUInt32() };
+        return new TestServerNoncePacket { Nonce = reader.ReadUInt32() };
     }
 }
 
 /// <summary>A native C->S extension packet used across the codec tests.</summary>
-[ExtensionClientOpcode(0x0101, Dialect.V1)]
-public sealed record TestPongPacket : ExtensionClientPacket
+[ExtensionClientOpcode(0x0201, Dialect.V1)]
+public sealed record TestClientBytePacket : ExtensionClientPacket
 {
     public required byte Value { get; init; }
 
-    public override ushort Opcode => 0x0101;
+    public override ushort Opcode => 0x0201;
 
     public override void WriteBody(IPacketWriter writer) => writer.WriteByte(Value);
 
-    public static TestPongPacket Parse(ReadOnlySpan<byte> body)
+    public static TestClientBytePacket Parse(ReadOnlySpan<byte> body)
     {
         var reader = new PacketReader(body);
 
-        return new TestPongPacket { Value = reader.ReadByte() };
+        return new TestClientBytePacket { Value = reader.ReadByte() };
     }
 }
 

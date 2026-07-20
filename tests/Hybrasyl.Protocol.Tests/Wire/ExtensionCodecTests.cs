@@ -8,31 +8,31 @@ namespace Hybrasyl.Protocol.Tests.Wire;
 public class ExtensionCodecTests
 {
     private static ExtensionCodec CodecWithTestPackets() =>
-        new([typeof(TestPingPacket).Assembly]);
+        new([typeof(TestServerNoncePacket).Assembly]);
 
     [Fact]
     public void EncodeServer_ThenDecode_RoundTripsNativeExtensionPacket()
     {
         var codec = CodecWithTestPackets();
-        var wire = codec.EncodeServer(new TestPingPacket { Nonce = 0xDEADBEEF }, Dialect.V1);
+        var wire = codec.EncodeServer(new TestServerNoncePacket { Nonce = 0xDEADBEEF }, Dialect.V1);
 
         var ok = codec.TryDecodeServer(wire, out var packet, out var consumed);
 
         ok.Should().BeTrue();
         consumed.Should().Be(wire.Length);
-        packet.Should().BeOfType<TestPingPacket>().Which.Nonce.Should().Be(0xDEADBEEF);
+        packet.Should().BeOfType<TestServerNoncePacket>().Which.Nonce.Should().Be(0xDEADBEEF);
     }
 
     [Fact]
     public void EncodeClient_ThenDecode_RoundTripsNativeExtensionPacket()
     {
         var codec = CodecWithTestPackets();
-        var wire = codec.EncodeClient(new TestPongPacket { Value = 0x2A }, Dialect.V1);
+        var wire = codec.EncodeClient(new TestClientBytePacket { Value = 0x2A }, Dialect.V1);
 
         var ok = codec.TryDecodeClient(wire, out var packet, out _);
 
         ok.Should().BeTrue();
-        packet.Should().BeOfType<TestPongPacket>().Which.Value.Should().Be((byte)0x2A);
+        packet.Should().BeOfType<TestClientBytePacket>().Which.Value.Should().Be((byte)0x2A);
     }
 
     [Fact]
@@ -53,13 +53,14 @@ public class ExtensionCodecTests
     public void Codec_RegistersOnlyDeclaredExtensionPackets_NotRetail()
     {
         // The default codec composes no retail packets — un-migrated retail travels as literal
-        // 0xAA frames on DALib's path, never through the extension codec.
-        var empty = new ExtensionCodec();
-        empty.RegisteredServerOpcodeCount.Should().Be(0);
-        empty.RegisteredClientOpcodeCount.Should().Be(0);
+        // 0xAA frames on DALib's path, never through the extension codec. Only sreang's own
+        // declared packets register: Ping and Pong, each in both directions.
+        var sreangOnly = new ExtensionCodec();
+        sreangOnly.RegisteredServerOpcodeCount.Should().Be(2);
+        sreangOnly.RegisteredClientOpcodeCount.Should().Be(2);
 
         var withTests = CodecWithTestPackets();
-        withTests.RegisteredServerOpcodeCount.Should().BeGreaterThan(0);
+        withTests.RegisteredServerOpcodeCount.Should().BeGreaterThan(2);
     }
 
     [Fact]
@@ -77,7 +78,7 @@ public class ExtensionCodecTests
     public void Decode_PartialBuffer_ReturnsFalse()
     {
         var codec = CodecWithTestPackets();
-        var wire = codec.EncodeServer(new TestPingPacket { Nonce = 1 }, Dialect.V1);
+        var wire = codec.EncodeServer(new TestServerNoncePacket { Nonce = 1 }, Dialect.V1);
 
         var ok = codec.TryDecodeServer(wire.AsMemory(0, wire.Length - 1), out _, out var consumed);
 
