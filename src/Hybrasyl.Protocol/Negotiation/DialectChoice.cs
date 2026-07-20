@@ -10,9 +10,13 @@ namespace Hybrasyl.Protocol.Negotiation;
 ///     The first client-to-server message inside the established TLS channel: the dialect the
 ///     client chose and its version string, <c>[u8 chosenSignature][string8 clientVersion]</c>
 ///     (<c>string8</c> = <c>[u8 length][Latin-1 bytes]</c>, matching the wire's string convention).
-///     Sent confidentially inside TLS.
+///     Sent confidentially inside TLS. The client always sends its real dialect, which may fall
+///     <em>outside</em> the server's offered range: both sides then derive
+///     <see cref="ConnectionMode.RetailOverTls" /> from (offer, choice) — the mode is never
+///     separately signaled on the wire.
 /// </summary>
-/// <param name="ChosenSignature">The dialect signature the client selected from the offer.</param>
+/// <param name="ChosenSignature">The dialect the client speaks (not necessarily within the
+///     offer).</param>
 /// <param name="ClientVersion">The client's version string, for the server's records.</param>
 public readonly record struct DialectChoice(byte ChosenSignature, string ClientVersion)
 {
