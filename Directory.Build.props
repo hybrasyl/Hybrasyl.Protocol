@@ -1,0 +1,17 @@
+<Project>
+    <PropertyGroup>
+        <LangVersion>14</LangVersion>
+        <Nullable>enable</Nullable>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+        <NeutralLanguage>en</NeutralLanguage>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <!-- DALib is consumed from the pinned NuGet package by default. Opt into the sibling
+             checkout with -p:UseLocalDALib=true when co-developing DALib alongside sreang.
+             Mirrors Brigid's toggle. The extension protocol deliberately does NOT live in DALib
+             (retail/USDA is ground truth); sreang is where the divergence lives. -->
+        <UseLocalDALib Condition="'$(UseLocalDALib)' == ''">false</UseLocalDALib>
+        <LocalDALibProjectPath Condition="'$(LocalDALibProjectPath)' == ''">$(MSBuildThisFileDirectory)..\dalib\DALib\DALib.csproj</LocalDALibProjectPath>
+    </PropertyGroup>
+</Project>

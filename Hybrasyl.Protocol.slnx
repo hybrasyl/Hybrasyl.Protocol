@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Hybrasyl.Protocol/Hybrasyl.Protocol.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Hybrasyl.Protocol.Tests/Hybrasyl.Protocol.Tests.csproj" />
+  </Folder>
+</Solution>
