@@ -1,0 +1,38 @@
+name: Build library and test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: deploy
+    strategy:
+      matrix:
+        dotnet-version: ['10.0.x']
+
+    steps:
+      - id: get_short_sha
+        run: echo "SHORT_SHA=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_ENV
+      - name: Check out source
+        uses: actions/checkout@v6
+      - name: Set up .NET SDK ${{ matrix.dotnet-version }}
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ matrix.dotnet-version }}
+      - name: Install dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+      - name: run tests
+        run: dotnet test --no-restore --verbosity normal
+      - name: Discord notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        uses: Ilshidur/action-discord@0.3.2
+        continue-on-error: true
+        with:
+          args: "Hybrasyl.Protocol/${{ env.SHORT_SHA }}: tests passed!"

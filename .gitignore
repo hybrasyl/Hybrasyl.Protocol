@@ -27,3 +27,4 @@ Thumbs.db
 *.nupkg
 *.snupkg
 .nuget/
+.claude/

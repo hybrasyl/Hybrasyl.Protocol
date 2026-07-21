@@ -5,7 +5,7 @@
         <Description>The Hybrasyl extended-framing protocol dialect: a negotiated extension layered beside retail DOOMVAS v1 (DALib), carried over TLS 1.3. Shared by the Hybrasyl server and Brigid.</Description>
         <Authors>Hybrasyl contributors</Authors>
         <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
-        <RepositoryUrl>https://github.com/hybrasyl/sreang</RepositoryUrl>
+        <RepositoryUrl>https://github.com/hybrasyl/Hybrasyl.Protocol</RepositoryUrl>
         <Tags>hybrasyl; doomvas; darkages; protocol;</Tags>
         <Version>0.0.1</Version>
 
