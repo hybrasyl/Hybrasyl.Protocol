@@ -97,6 +97,35 @@ public class ExtensionFrameCodecTests
     }
 
     [Fact]
+    public void MaxFrameSize_MeansTotalWireSize_WritableAtACapIsReadableAtIt()
+    {
+        // The minimal frame is exactly HeaderLength bytes; written at a cap of HeaderLength
+        // it must read back at the same cap. This is the reader/writer symmetry the two
+        // checks used to lack (the reader excluded the 4-byte length field).
+        var frame = ExtensionFrameCodec.WriteFrame(Dialect.V1, 0x0100, [],
+            maxFrameSize: ExtensionFrame.HeaderLength);
+        frame.Length.Should().Be(ExtensionFrame.HeaderLength);
+
+        var ok = ExtensionFrameCodec.TryReadFrame(frame, out _, out _, out var consumed,
+            maxFrameSize: ExtensionFrame.HeaderLength);
+
+        ok.Should().BeTrue();
+        consumed.Should().Be(ExtensionFrame.HeaderLength);
+    }
+
+    [Fact]
+    public void TryRead_FrameOneByteOverMaxFrameSize_Throws()
+    {
+        var frame = ExtensionFrameCodec.WriteFrame(Dialect.V1, 0x0100, [0x00]);
+        frame.Length.Should().Be(ExtensionFrame.HeaderLength + 1);
+
+        var act = () => ExtensionFrameCodec.TryReadFrame(frame, out _, out _, out _,
+            maxFrameSize: ExtensionFrame.HeaderLength);
+
+        act.Should().Throw<InvalidDataException>().WithMessage("*exceeds MaxFrameSize*");
+    }
+
+    [Fact]
     public void TryRead_LengthExceedsMaxFrameSize_ThrowsBeforeRequiringBody()
     {
         // Claims a 16 MiB body but supplies only the length field: the guard must fire on the

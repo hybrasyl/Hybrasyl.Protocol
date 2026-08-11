@@ -28,9 +28,10 @@ public static class ExtensionFrameCodec
     ///     buffer by this amount and call again to drain further frames.
     /// </param>
     /// <param name="maxFrameSize">
-    ///     The largest length the reader will accept. A claimed length above this is rejected
-    ///     <em>before</em> waiting for or allocating the body, so an oversized claim cannot force
-    ///     unbounded buffering.
+    ///     The largest <b>total wire size</b> (length field included) the reader will accept -
+    ///     the same meaning the writer enforces, so any frame writable at a cap is readable at
+    ///     that cap. An oversized claim is rejected <em>before</em> waiting for or allocating
+    ///     the body, so it cannot force unbounded buffering.
     /// </param>
     /// <returns>
     ///     <see langword="true" /> if a complete frame was read; <see langword="false" /> if more
@@ -71,11 +72,11 @@ public static class ExtensionFrameCodec
                 $"Frame length {lengthValue} is below the header minimum of " +
                 $"{ExtensionFrame.MinLengthValue}.");
 
-        if (lengthValue > (uint)maxFrameSize)
-            throw new InvalidDataException(
-                $"Frame length {lengthValue} exceeds MaxFrameSize {maxFrameSize}.");
-
         var totalFrameLength = (long)ExtensionFrame.LengthFieldLength + lengthValue;
+
+        if (totalFrameLength > maxFrameSize)
+            throw new InvalidDataException(
+                $"Frame length {totalFrameLength} exceeds MaxFrameSize {maxFrameSize}.");
 
         // Header validated, but the whole body hasn't arrived yet.
         if (buffer.Length < totalFrameLength)
