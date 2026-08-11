@@ -86,16 +86,19 @@ public sealed class ExtensionCodec
     /// </summary>
     /// <returns><see langword="true" /> if a complete frame was decoded; <see langword="false" />
     ///     if more bytes are needed.</returns>
-    /// <exception cref="InvalidDataException">The frame is malformed, or no extension packet is
-    ///     registered for its <c>(signature, opcode)</c>.</exception>
+    /// <exception cref="InvalidDataException">The frame is malformed, no extension packet is
+    ///     registered for its <c>(signature, opcode)</c>, or its signature differs from
+    ///     <paramref name="expectedDialect" /> when one is supplied (the negotiated dialect —
+    ///     pass it so a peer cannot reach shapes its negotiation never granted).</exception>
     public bool TryDecodeClient(
         ReadOnlyMemory<byte> buffer,
         out IExtensionClientPacket? packet,
         out int bytesConsumed,
-        int maxFrameSize = ExtensionFrame.DefaultMaxFrameSize)
+        int maxFrameSize = ExtensionFrame.DefaultMaxFrameSize,
+        Dialect? expectedDialect = null)
     {
         var ok = TryDecode(_clientTable, "C->S", buffer, out var decoded, out bytesConsumed,
-            maxFrameSize);
+            maxFrameSize, expectedDialect);
         packet = (IExtensionClientPacket?)decoded;
 
         return ok;
@@ -109,10 +112,11 @@ public sealed class ExtensionCodec
         ReadOnlyMemory<byte> buffer,
         out IExtensionServerPacket? packet,
         out int bytesConsumed,
-        int maxFrameSize = ExtensionFrame.DefaultMaxFrameSize)
+        int maxFrameSize = ExtensionFrame.DefaultMaxFrameSize,
+        Dialect? expectedDialect = null)
     {
         var ok = TryDecode(_serverTable, "S->C", buffer, out var decoded, out bytesConsumed,
-            maxFrameSize);
+            maxFrameSize, expectedDialect);
         packet = (IExtensionServerPacket?)decoded;
 
         return ok;
@@ -124,7 +128,8 @@ public sealed class ExtensionCodec
         ReadOnlyMemory<byte> buffer,
         out IExtensionPacket? packet,
         out int bytesConsumed,
-        int maxFrameSize)
+        int maxFrameSize,
+        Dialect? expectedDialect)
     {
         packet = null;
         bytesConsumed = 0;
@@ -132,6 +137,14 @@ public sealed class ExtensionCodec
         if (!ExtensionFrameCodec.TryReadFrame(buffer, out var header, out var body,
                 out var consumed, maxFrameSize))
             return false;
+
+        // The signature is constant for a connection's life once negotiated; resolution keys
+        // on the frame's own signature, so without this check a peer could reach shapes its
+        // negotiation never granted once a later dialect exists.
+        if (expectedDialect is { } expected && header.Signature != (byte)expected)
+            throw new InvalidDataException(
+                $"Frame signature 0x{header.Signature:X2} does not match the negotiated dialect " +
+                $"0x{(byte)expected:X2}.");
 
         var decode = table.Resolve(header.Signature, header.Opcode)
             ?? throw new InvalidDataException(

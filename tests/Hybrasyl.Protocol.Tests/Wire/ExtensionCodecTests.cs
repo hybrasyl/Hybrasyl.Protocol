@@ -36,6 +36,37 @@ public class ExtensionCodecTests
     }
 
     [Fact]
+    public void TryDecode_WithMatchingExpectedDialect_Decodes()
+    {
+        var codec = CodecWithTestPackets();
+        var wire = codec.EncodeClient(new TestClientBytePacket { Value = 0x2A }, Dialect.V1);
+
+        var ok = codec.TryDecodeClient(wire, out var packet, out _,
+            expectedDialect: Dialect.V1);
+
+        ok.Should().BeTrue();
+        packet.Should().BeOfType<TestClientBytePacket>();
+    }
+
+    [Fact]
+    public void TryDecode_WithMismatchedExpectedDialect_Throws()
+    {
+        // A connection negotiated at one dialect must reject frames stamped with another:
+        // resolution keys on the frame's own signature, so accepting it would grant shapes
+        // the negotiation never did once a later dialect exists.
+        var codec = CodecWithTestPackets();
+        var wire = ExtensionFrameCodec.WriteFrame(0xB1,
+            new TestClientBytePacket { Value = 0x2A }.Opcode,
+            new TestClientBytePacket { Value = 0x2A }.ToBody());
+
+        var act = () => codec.TryDecodeClient(wire, out _, out _,
+            expectedDialect: Dialect.V1);
+
+        act.Should().Throw<InvalidDataException>()
+            .WithMessage("*does not match the negotiated dialect*");
+    }
+
+    [Fact]
     public void ReplacementOpcode_RoundTripsInExtensionSpace()
     {
         // The "0xB0 ... 0x15 replacement" case: retail 0x15 re-shaped, carried at 0x0015.
