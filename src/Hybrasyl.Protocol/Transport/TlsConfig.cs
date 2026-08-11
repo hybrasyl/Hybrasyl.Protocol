@@ -31,6 +31,25 @@ public static class TlsConfig
     }
 
     /// <summary>
+    ///     Server-side <c>SslStream</c> options carrying a full certificate context, for
+    ///     serving intermediates (a chain file) rather than a bare leaf: TLS 1.3 only, no
+    ///     client certificate.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="certificateContext" /> is null.</exception>
+    public static SslServerAuthenticationOptions ServerOptions(
+        SslStreamCertificateContext certificateContext)
+    {
+        ArgumentNullException.ThrowIfNull(certificateContext);
+
+        return new SslServerAuthenticationOptions
+        {
+            ServerCertificateContext = certificateContext,
+            EnabledSslProtocols = Protocol,
+            ClientCertificateRequired = false,
+        };
+    }
+
+    /// <summary>
     ///     Client-side <c>SslStream</c> options: TLS 1.3 only. A null
     ///     <paramref name="validationCallback" /> means platform default (system-root) validation;
     ///     the TOFU flow supplies its own callback.

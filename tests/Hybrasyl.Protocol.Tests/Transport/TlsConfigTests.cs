@@ -32,6 +32,20 @@ public class TlsConfigTests
     }
 
     [Fact]
+    public void ServerOptions_WithCertificateContext_CarryContext_PinTls13()
+    {
+        using var certificate = CreateTestCertificate();
+        var context = SslStreamCertificateContext.Create(certificate,
+            additionalCertificates: null, offline: true);
+
+        var options = TlsConfig.ServerOptions(context);
+
+        options.EnabledSslProtocols.Should().Be(SslProtocols.Tls13);
+        options.ServerCertificateContext.Should().BeSameAs(context);
+        options.ClientCertificateRequired.Should().BeFalse();
+    }
+
+    [Fact]
     public void ClientOptions_PinTls13_AndWireTheCallback()
     {
         RemoteCertificateValidationCallback callback = (_, _, _, _) => true;
@@ -54,10 +68,12 @@ public class TlsConfigTests
     [Fact]
     public void NullArguments_Throw()
     {
-        var serverAct = () => TlsConfig.ServerOptions(null!);
+        var serverAct = () => TlsConfig.ServerOptions((X509Certificate2)null!);
+        var contextAct = () => TlsConfig.ServerOptions((SslStreamCertificateContext)null!);
         var clientAct = () => TlsConfig.ClientOptions(null!);
 
         serverAct.Should().Throw<ArgumentNullException>();
+        contextAct.Should().Throw<ArgumentNullException>();
         clientAct.Should().Throw<ArgumentNullException>();
     }
 }
