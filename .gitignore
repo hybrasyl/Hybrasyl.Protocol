@@ -28,3 +28,9 @@ Thumbs.db
 *.snupkg
 .nuget/
 .claude/
+
+# Editor backups
+*~
+
+# Agent session staging, not repo content
+.codex-memory-staging/

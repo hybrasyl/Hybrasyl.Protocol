@@ -17,8 +17,8 @@ namespace Hybrasyl.Protocol.Negotiation;
 ///         emits this sequence.
 ///     </para>
 ///     <para>
-///         <see cref="Version" /> versions the marker envelope itself, independently of the dialect
-///         signature (which is negotiated inside TLS). A reader that sees a newer marker version it
+///         <see cref="Version" /> versions the marker envelope itself, independently of the
+///         dialect (which is negotiated inside TLS). A reader that sees a newer marker version it
 ///         does not understand should still treat the marker's presence as capability and upgrade -
 ///         the details are settled inside TLS, not here.
 ///     </para>
@@ -38,10 +38,10 @@ public readonly record struct CapabilityMarker(byte Version, CapabilityFlags Fla
     public static ReadOnlySpan<byte> Magic => [0x00, 0x48, 0x59, 0x42];
 
     /// <summary>The current marker envelope version.</summary>
-    public const byte CurrentVersion = 0x01;
+    public static readonly byte CurrentVersion = 0x01;
 
     /// <summary>Total marker length on the wire: magic (4) + version (1) + flags (1).</summary>
-    public const int Length = 6;
+    public static readonly int Length = 6;
 
     /// <summary>The marker a current server appends: <see cref="CurrentVersion" />, no flags.</summary>
     public static CapabilityMarker Current => new(CurrentVersion, CapabilityFlags.None);

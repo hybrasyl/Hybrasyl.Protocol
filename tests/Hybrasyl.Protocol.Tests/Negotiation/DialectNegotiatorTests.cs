@@ -50,14 +50,28 @@ public class DialectNegotiatorTests
     }
 
     [Fact]
-    public async Task Server_RetailSignatureChoice_Throws()
+    public async Task Server_RetailDialectChoice_Throws()
     {
         // 0xAA is not a dialect and never appears in a choice - retail-over-TLS is derived, not signaled.
-        var stream = new ScriptedStream([0xAA, 0x01, (byte)'x']);
+        var stream = new ScriptedStream(
+            NegotiationEnvelope.Write(NegotiationMessageType.DialectChoice, [0xAA, 0x01, (byte)'x']));
 
         var act = () => DialectNegotiator.NegotiateAsServerAsync(stream, ServerV1);
 
         await act.Should().ThrowAsync<InvalidDataException>().WithMessage("*out of range*");
+    }
+
+    [Fact]
+    public async Task Server_NonMarkerFirstByte_ThrowsBeforeTrustingALength()
+    {
+        // A peer that is not speaking this protocol must be rejected on byte 0, not have its bytes
+        // read as a length and then block waiting for a body that never arrives.
+        var stream = new ScriptedStream([0xAA, 0xFF, 0xFF]);
+
+        var act = () => DialectNegotiator.NegotiateAsServerAsync(stream, ServerV1);
+
+        await act.Should().ThrowAsync<InvalidDataException>()
+            .WithMessage("*starts 0xAA*expected the 0xFF*");
     }
 
     [Fact]
@@ -122,7 +136,7 @@ public class DialectNegotiatorTests
     public async Task PrematureClose_ThrowsEndOfStream()
     {
         var serverAct = () => DialectNegotiator.NegotiateAsServerAsync(
-            new ScriptedStream([0xB0]), ServerV1); // signature but no length byte
+            new ScriptedStream([0xB0]), ServerV1); // dialect but no length byte
         var clientAct = () => DialectNegotiator.NegotiateAsClientAsync(
             new ScriptedStream([0xB0]), new ClientDialectPolicy(Dialect.V1), "v");
 

@@ -11,10 +11,27 @@ namespace Hybrasyl.Protocol.Wire;
 ///     allocated up from <c>0x0100</c>.
 /// </summary>
 /// <remarks>
-///     Bodies use DALib's public <see cref="IPacketWriter" /> and the same
-///     <c>public static T Parse(ReadOnlySpan&lt;byte&gt;)</c> convention as DALib packets, so an
-///     extension packet body looks identical to a retail one at the serialization layer. Framing,
-///     length, and the dialect signature are the codec's concern; crypto is TLS's.
+///     <para>
+///         Bodies use DALib's public <see cref="IPacketWriter" /> and the same
+///         <c>public static T Parse(ReadOnlySpan&lt;byte&gt;)</c> convention as DALib packets, so an
+///         extension packet body looks identical to a retail one at the serialization layer.
+///         Framing, length, and the dialect are the codec's concern; crypto is TLS's.
+///     </para>
+///     <para>
+///         <strong>Parsing is exact-body consumption.</strong> A <c>Parse</c> must reject a body it
+///         does not consume entirely, not merely stop reading when it has what it wants. A short
+///         body throws from the reader on its own; a <em>long</em> one is the dangerous direction,
+///         because it parses cleanly while discarding the excess - so a framing bug, a version
+///         mismatch, or a peer appending data all present as a valid packet. Reject rather than
+///         truncate; the codec normalises the failure to
+///         <see cref="System.IO.InvalidDataException" /> either way.
+///     </para>
+///     <para>
+///         <c>Parse</c>'s return type must be the declaring type exactly. The dispatch table
+///         records it as the shape that decoder produces, and the encode-side shape check compares
+///         against that record - a <c>Parse</c> returning a sibling type would make the record
+///         false rather than be caught by it. Registration refuses this at codec construction.
+///     </para>
 /// </remarks>
 public interface IExtensionPacket
 {

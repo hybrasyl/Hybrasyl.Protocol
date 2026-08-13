@@ -8,8 +8,8 @@ namespace Hybrasyl.Protocol.Wire;
 ///     <c>[ServerOpcode]</c>, but for the extension opcode space.
 /// </summary>
 /// <remarks>
-///     Resolution is latest-wins: an incoming <c>(signature, opcode)</c> binds to the registered
-///     type with the highest introduction <see cref="Since" /> that is <c>&lt;= signature</c>. So
+///     Resolution is latest-wins: an incoming <c>(dialect, opcode)</c> binds to the registered
+///     type with the highest introduction <see cref="Since" /> that is <c>&lt;= dialect</c>. So
 ///     a dialect that changes N packets is N new types carrying the new <see cref="Since" /> and
 ///     zero edits to the unchanged ones.
 /// </remarks>
