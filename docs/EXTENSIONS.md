@@ -676,6 +676,21 @@ go silent after the greeting.
   Where a platform genuinely cannot negotiate TLS 1.3, the extension channel is
   unavailable there and plaintext retail framing remains. That is a legible failure with
   an accurate message, and it is the intended outcome rather than a silent downgrade.
+
+  **A client MUST ensure its TLS implementation is one that can negotiate TLS 1.3.** Some
+  platforms ship more than one, and default to one that cannot. Selecting the backend is
+  a build- or host-level decision, not something the protocol or a library can do on the
+  client's behalf, and a client that gets it wrong fails the postcondition above with
+  nothing on the wire to explain why.
+
+  > **Implementation note (.NET, macOS).** The default `SslStream` backend on macOS is
+  > SecureTransport, which caps at TLS 1.2. Selecting Network.framework —
+  > `System.Net.Security.UseNetworkFramework`, set via `RuntimeHostConfigurationOption` in
+  > the project file so it applies before `SslStream` initialises — negotiates TLS 1.3.
+  > Setting it in code after that point is ignored silently. It governs **client**
+  > connections only: a macOS *server* caps at TLS 1.2 and no setting lifts it, so macOS
+  > is a viable client platform and not a viable server one. Measured on .NET 10.0.2 /
+  > macOS 26.5.2: `Tls12` by default, `Tls13` with the switch.
 - **A target host name MUST be supplied by the client, and MUST NOT be empty.** The
   target host is what the platform validates the presented certificate against. With it
   empty the handshake still completes, still encrypts, and still reports no error — but

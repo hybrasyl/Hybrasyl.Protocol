@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net.Security;
+using System.Runtime.InteropServices;
 using System.Security.Authentication;
 using System.Threading;
 using System.Threading.Tasks;
@@ -146,6 +147,42 @@ public static class TlsChannel
         throw new AuthenticationException(
             $"The TLS handshake negotiated {stream.SslProtocol}, but the extension channel " +
             $"requires {TlsConfig.RequiredProtocol}. Where a platform's TLS stack cannot " +
-            "negotiate it, the extension channel is unavailable and retail framing remains.");
+            "negotiate it, the extension channel is unavailable and retail framing remains." +
+            BackendHint(
+                RuntimeInformation.IsOSPlatform(OSPlatform.OSX),
+                AppContext.TryGetSwitch(NetworkFrameworkSwitch, out var enabled) && enabled));
+    }
+
+    /// <summary>
+    ///     The .NET switch selecting a macOS TLS backend that can negotiate TLS 1.3. The default
+    ///     backend caps at TLS 1.2, so a macOS client leaving this unset fails the postcondition
+    ///     with nothing on the wire to explain why.
+    /// </summary>
+    /// <remarks>
+    ///     Set it through <c>RuntimeHostConfigurationOption</c> in the project file rather than
+    ///     <see cref="AppContext.SetSwitch" /> in code: it is read when <c>SslStream</c> first
+    ///     initialises its backend, so a call sequenced after that point is ignored without
+    ///     complaint.
+    /// </remarks>
+    public const string NetworkFrameworkSwitch = "System.Net.Security.UseNetworkFramework";
+
+    /// <summary>
+    ///     The platform-specific tail of the failure message. Separated from the ambient checks so
+    ///     every branch is reachable in a test on any host.
+    /// </summary>
+    internal static string BackendHint(bool isMacOs, bool networkFrameworkEnabled)
+    {
+        if (!isMacOs)
+            return string.Empty;
+
+        if (networkFrameworkEnabled)
+            return " This is macOS with a TLS 1.3-capable backend already selected, so the peer " +
+                   "is the constraint - note that a macOS *server* caps at TLS 1.2 regardless of " +
+                   "this setting.";
+
+        return $" On macOS the default backend caps at TLS 1.2. Set the '{NetworkFrameworkSwitch}' " +
+               "switch, via RuntimeHostConfigurationOption in the project file so it applies before " +
+               "SslStream initialises, to select a backend that negotiates TLS 1.3. It governs " +
+               "client connections only; a macOS server cannot negotiate TLS 1.3 at all.";
     }
 }

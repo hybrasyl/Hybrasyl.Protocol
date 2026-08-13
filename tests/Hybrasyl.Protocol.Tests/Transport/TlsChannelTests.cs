@@ -158,6 +158,38 @@ public class TlsChannelTests
     }
 
     [Fact]
+    public void BackendHint_OnMacOsWithoutTheSwitch_NamesIt()
+    {
+        // The single most likely cause of a 1.2 result in a macOS client, and the message is where
+        // whoever hits it will be looking. Reached by argument rather than by ambient platform, so
+        // this branch is testable on any host.
+        var hint = TlsChannel.BackendHint(isMacOs: true, networkFrameworkEnabled: false);
+
+        hint.Should().Contain(TlsChannel.NetworkFrameworkSwitch);
+        hint.Should().Contain("RuntimeHostConfigurationOption",
+            "setting it in code after SslStream initialises is ignored silently");
+        hint.Should().Contain("server cannot negotiate",
+            "the switch governs client connections only, which is the other half of the trap");
+    }
+
+    [Fact]
+    public void BackendHint_OnMacOsWithTheSwitch_PointsAtThePeerInstead()
+    {
+        var hint = TlsChannel.BackendHint(isMacOs: true, networkFrameworkEnabled: true);
+
+        hint.Should().NotContain(TlsChannel.NetworkFrameworkSwitch,
+            "advising a setting that is already set sends the reader down a dead end");
+        hint.Should().Contain("peer is the constraint");
+    }
+
+    [Fact]
+    public void BackendHint_OffMacOs_IsSilent()
+    {
+        TlsChannel.BackendHint(isMacOs: false, networkFrameworkEnabled: false).Should().BeEmpty();
+        TlsChannel.BackendHint(isMacOs: false, networkFrameworkEnabled: true).Should().BeEmpty();
+    }
+
+    [Fact]
     public void VerifyNegotiatedProtocol_RejectsNull()
     {
         var act = () => TlsChannel.VerifyNegotiatedProtocol(null!);
