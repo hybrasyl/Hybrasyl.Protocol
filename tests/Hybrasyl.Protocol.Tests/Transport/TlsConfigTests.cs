@@ -20,19 +20,21 @@ public class TlsConfigTests
     }
 
     [Fact]
-    public void ServerOptions_PinTls13_CarryCert_RequireNoClientCert()
+    public void ServerOptions_LeaveProtocolToThePlatform_CarryCert_RequireNoClientCert()
     {
         using var certificate = CreateTestCertificate();
 
         var options = TlsConfig.ServerOptions(certificate);
 
-        options.EnabledSslProtocols.Should().Be(SslProtocols.Tls13);
+        options.EnabledSslProtocols.Should().Be(SslProtocols.None,
+            "an explicit request above TLS 1.2 is refused outright by some platforms; the " +
+            "requirement is enforced after the handshake instead");
         options.ServerCertificate.Should().BeSameAs(certificate);
         options.ClientCertificateRequired.Should().BeFalse();
     }
 
     [Fact]
-    public void ServerOptions_WithCertificateContext_CarryContext_PinTls13()
+    public void ServerOptions_WithCertificateContext_CarryContext_LeaveProtocolToThePlatform()
     {
         using var certificate = CreateTestCertificate();
         var context = SslStreamCertificateContext.Create(certificate,
@@ -40,19 +42,19 @@ public class TlsConfigTests
 
         var options = TlsConfig.ServerOptions(context);
 
-        options.EnabledSslProtocols.Should().Be(SslProtocols.Tls13);
+        options.EnabledSslProtocols.Should().Be(SslProtocols.None);
         options.ServerCertificateContext.Should().BeSameAs(context);
         options.ClientCertificateRequired.Should().BeFalse();
     }
 
     [Fact]
-    public void ClientOptions_PinTls13_AndWireTheCallback()
+    public void ClientOptions_LeaveProtocolToThePlatform_AndWireTheCallback()
     {
         RemoteCertificateValidationCallback callback = (_, _, _, _) => true;
 
         var options = TlsConfig.ClientOptions("play.hybrasyl.com", callback);
 
-        options.EnabledSslProtocols.Should().Be(SslProtocols.Tls13);
+        options.EnabledSslProtocols.Should().Be(SslProtocols.None);
         options.TargetHost.Should().Be("play.hybrasyl.com");
         options.RemoteCertificateValidationCallback.Should().BeSameAs(callback);
     }
