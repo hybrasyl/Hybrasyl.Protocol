@@ -683,14 +683,30 @@ go silent after the greeting.
   client's behalf, and a client that gets it wrong fails the postcondition above with
   nothing on the wire to explain why.
 
-  > **Implementation note (.NET, macOS).** The default `SslStream` backend on macOS is
-  > SecureTransport, which caps at TLS 1.2. Selecting Network.framework —
+  > **Implementation note (.NET, macOS).** macOS ships two `SslStream` backends and
+  > defaults to the one that cannot negotiate TLS 1.3. Selecting Network.framework —
   > `System.Net.Security.UseNetworkFramework`, set via `RuntimeHostConfigurationOption` in
   > the project file so it applies before `SslStream` initialises — negotiates TLS 1.3.
-  > Setting it in code after that point is ignored silently. It governs **client**
-  > connections only: a macOS *server* caps at TLS 1.2 and no setting lifts it, so macOS
-  > is a viable client platform and not a viable server one. Measured on .NET 10.0.2 /
-  > macOS 26.5.2: `Tls12` by default, `Tls13` with the switch.
+  > Setting it in code after that point is read too late and ignored silently.
+  >
+  > It governs **client** connections only. **A macOS server negotiates at most TLS 1.2
+  > and no setting lifts it**, so macOS is a viable client platform for this protocol and
+  > not a viable server one.
+  >
+  > Both halves are measured, on .NET 10.0.2 / macOS 26.5.2 against .NET 10.0.10 / Linux:
+  >
+  > | Client | Server | Negotiated |
+  > |---|---|---|
+  > | macOS, default backend | public TLS 1.3 host | `Tls12` |
+  > | macOS, Network.framework | public TLS 1.3 host | `Tls13` |
+  > | **Linux** | **macOS** | **`Tls12`** |
+  > | Linux | Linux | `Tls13` *(control, same client binary, same minute)* |
+  >
+  > The third row is the one that establishes the server limit: that client reaches TLS 1.3
+  > against a Linux server seconds either side of the run, is not using Network.framework,
+  > and honours its own validation callback — so the macOS server is the constraint. The
+  > control matters because the obvious experiment, macOS talking to itself, cannot show
+  > this: both ends are capped there, and the result is fully explained by the client alone.
 - **A target host name MUST be supplied by the client, and MUST NOT be empty.** The
   target host is what the platform validates the presented certificate against. With it
   empty the handshake still completes, still encrypts, and still reports no error — but
