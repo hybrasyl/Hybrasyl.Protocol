@@ -11,15 +11,38 @@ namespace Hybrasyl.Protocol.Transport;
 ///     Certificate <em>trust</em> policy (system roots, TOFU pinning) is the client application's
 ///     concern, supplied via the validation callback.
 /// </summary>
+/// <remarks>
+///     <b>"TLS 1.3 only" is enforced after the handshake, not requested before it</b>, and these
+///     options therefore leave the enabled protocols at
+///     <see cref="SslProtocols.None" /> - the platform's own best choice. An explicit request
+///     above TLS 1.2 is not portable: Apple's SecureTransport rejects one outright, so pinning
+///     threw <c>PlatformNotSupportedException</c> on macOS for both ends. Use
+///     <see cref="TlsChannel" /> to upgrade, which applies the check; if you authenticate by hand
+///     with these options you own calling
+///     <see cref="TlsChannel.VerifyNegotiatedProtocol" /> yourself, because an options object
+///     cannot enforce a postcondition.
+/// </remarks>
 public static class TlsConfig
 {
-    /// <summary>The only protocol version the extension channel speaks.</summary>
-    public const SslProtocols Protocol = SslProtocols.Tls13;
+    /// <summary>
+    ///     The only protocol version the extension channel speaks. Verified against
+    ///     <see cref="System.Net.Security.SslStream.SslProtocol" /> once the handshake has
+    ///     completed - see <see cref="TlsChannel" /> for why it is not requested up front.
+    /// </summary>
+    public const SslProtocols RequiredProtocol = SslProtocols.Tls13;
+
+    /// <summary>
+    ///     What the options ask the platform for: nothing in particular, which is what lets the
+    ///     platform pick its best. The requirement is <see cref="RequiredProtocol" />, checked
+    ///     after the fact.
+    /// </summary>
+    public const SslProtocols EnabledProtocols = SslProtocols.None;
 
     // The server overloads leave CertificateRevocationCheckMode at NoCheck: it governs the
     // client's certificate, and ClientCertificateRequired is false, so no client chain is built.
 
-    /// <summary>Server-side <c>SslStream</c> options: TLS 1.3 only, no client certificate.</summary>
+    /// <summary>Server-side <c>SslStream</c> options, no client certificate. See the type
+    ///     remarks on how "TLS 1.3 only" is enforced.</summary>
     /// <exception cref="ArgumentNullException"><paramref name="certificate" /> is null.</exception>
     public static SslServerAuthenticationOptions ServerOptions(X509Certificate2 certificate)
     {
@@ -28,15 +51,15 @@ public static class TlsConfig
         return new SslServerAuthenticationOptions
         {
             ServerCertificate = certificate,
-            EnabledSslProtocols = Protocol,
+            EnabledSslProtocols = EnabledProtocols,
             ClientCertificateRequired = false,
         };
     }
 
     /// <summary>
     ///     Server-side <c>SslStream</c> options carrying a full certificate context, for
-    ///     serving intermediates (a chain file) rather than a bare leaf: TLS 1.3 only, no
-    ///     client certificate.
+    ///     serving intermediates (a chain file) rather than a bare leaf. No client certificate;
+    ///     see the type remarks on how "TLS 1.3 only" is enforced.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="certificateContext" /> is null.</exception>
     public static SslServerAuthenticationOptions ServerOptions(
@@ -47,13 +70,13 @@ public static class TlsConfig
         return new SslServerAuthenticationOptions
         {
             ServerCertificateContext = certificateContext,
-            EnabledSslProtocols = Protocol,
+            EnabledSslProtocols = EnabledProtocols,
             ClientCertificateRequired = false,
         };
     }
 
     /// <summary>
-    ///     Client-side <c>SslStream</c> options: TLS 1.3 only. A null
+    ///     Client-side <c>SslStream</c> options. A null
     ///     <paramref name="validationCallback" /> means platform default (system-root) validation;
     ///     the TOFU flow supplies its own callback.
     /// </summary>
@@ -103,7 +126,7 @@ public static class TlsConfig
         return new SslClientAuthenticationOptions
         {
             TargetHost = targetHost,
-            EnabledSslProtocols = Protocol,
+            EnabledSslProtocols = EnabledProtocols,
             RemoteCertificateValidationCallback = validationCallback,
             CertificateRevocationCheckMode = revocationMode,
         };

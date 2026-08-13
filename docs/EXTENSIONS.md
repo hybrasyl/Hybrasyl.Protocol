@@ -659,6 +659,23 @@ go silent after the greeting.
 - **TLS 1.3 only.** Both ends are ours, so there is no 1.2 fallback, no legacy
   cipher-suite negotiation, and no downgrade dance. The server holds the certificate;
   the client validates.
+
+  **This MUST be enforced as a postcondition, not requested as a precondition.**
+  Implementations MUST leave the enabled protocol set at the platform default and, once
+  the handshake completes, MUST verify the negotiated protocol is TLS 1.3 and drop the
+  connection otherwise. They MUST NOT pin an explicit protocol version in the handshake
+  options.
+
+  Pinning is not portable: some platform TLS stacks refuse an explicit request above
+  TLS 1.2 and fail the handshake before any certificate is examined, which makes the
+  extension channel unreachable there for both ends. A postcondition holds everywhere,
+  and is strictly stronger — it also catches a stack that silently negotiates something
+  older, which a pin cannot. No application data has crossed at the point of the check,
+  so a refused connection discloses nothing.
+
+  Where a platform genuinely cannot negotiate TLS 1.3, the extension channel is
+  unavailable there and plaintext retail framing remains. That is a legible failure with
+  an accurate message, and it is the intended outcome rather than a silent downgrade.
 - **A target host name MUST be supplied by the client, and MUST NOT be empty.** The
   target host is what the platform validates the presented certificate against. With it
   empty the handshake still completes, still encrypts, and still reports no error — but
@@ -680,6 +697,12 @@ go silent after the greeting.
   brittle setting.
 - **Per-connection handshake** on all three hops. TLS 1.3's 1-RTT handshake makes this
   inexpensive.
+- **The handshake MUST be bounded.** Neither the TLS handshake nor the dialect exchange
+  that follows it bounds itself, so a peer that advertises capability and then stalls
+  blocks indefinitely. On expiry the connection MUST fail with a legible error and MUST
+  NOT fall back to plaintext — the same rule as §3.3: a clock may declare a connection
+  dead, it may never decide capability. How long is a deployment parameter, like the
+  frame-size cap.
 - **0-RTT early data MUST NOT be used.** Its replay characteristics are not worth the
   saved round trip.
 - **Session resumption is not used.** Handshake frequency is trivially low: a session
