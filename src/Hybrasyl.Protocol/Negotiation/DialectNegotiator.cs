@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Binary;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,7 +40,7 @@ public static class DialectNegotiator
     ///     client's choice, and resolves the connection mode.
     /// </summary>
     /// <exception cref="EndOfStreamException">The peer closed mid-negotiation.</exception>
-    /// <exception cref="InvalidDataException">The choice carried an invalid dialect signature.</exception>
+    /// <exception cref="InvalidDataException">The choice carried an invalid dialect.</exception>
     public static async Task<ServerNegotiationResult> NegotiateAsServerAsync(
         Stream stream,
         ServerDialectPolicy policy,
@@ -70,8 +71,7 @@ public static class DialectNegotiator
         ArgumentNullException.ThrowIfNull(stream);
         ArgumentNullException.ThrowIfNull(clientVersion);
 
-        var offerBytes = new byte[2];
-        await stream.ReadExactlyAsync(offerBytes, cancellationToken).ConfigureAwait(false);
+        var offerBytes = await ReadMessageAsync(stream, cancellationToken).ConfigureAwait(false);
         DialectOffer.TryRead(offerBytes, out var offer, out _);
 
         var choice = new DialectChoice(policy.Supported, clientVersion);
@@ -83,16 +83,38 @@ public static class DialectNegotiator
 
     private static async Task<DialectChoice> ReadChoiceAsync(Stream stream, CancellationToken cancellationToken)
     {
-        // [u8 signature][u8 versionLength] first, then exactly versionLength more - the exact-read
-        // discipline that keeps any pipelined frame bytes in the stream.
-        var message = new byte[2 + byte.MaxValue];
-        await stream.ReadExactlyAsync(message.AsMemory(0, 2), cancellationToken).ConfigureAwait(false);
-
-        var versionLength = message[1];
-        await stream.ReadExactlyAsync(message.AsMemory(2, versionLength), cancellationToken).ConfigureAwait(false);
-
-        DialectChoice.TryRead(message.AsMemory(0, 2 + versionLength), out var choice, out _);
+        var message = await ReadMessageAsync(stream, cancellationToken).ConfigureAwait(false);
+        DialectChoice.TryRead(message, out var choice, out _);
 
         return choice;
+    }
+
+    /// <summary>
+    ///     Reads exactly one negotiation message: the marker and length field, then exactly
+    ///     <c>length</c> more bytes. Never reads past the message, so a peer may pipeline frames
+    ///     immediately behind it.
+    /// </summary>
+    private static async Task<byte[]> ReadMessageAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        var message = new byte[NegotiationEnvelope.PrefixLength];
+        await stream.ReadExactlyAsync(message, cancellationToken).ConfigureAwait(false);
+
+        // Checked before the length is trusted: a stream that is not speaking this protocol would
+        // otherwise have its bytes read as a length, and we would block for a body that never comes.
+        if (message[0] != NegotiationEnvelope.Marker)
+            throw new InvalidDataException(
+                $"Negotiation message starts 0x{message[0]:X2}; expected the " +
+                $"0x{NegotiationEnvelope.Marker:X2} marker.");
+
+        var lengthValue = BinaryPrimitives.ReadUInt16BigEndian(
+            message.AsSpan(NegotiationEnvelope.MarkerLength, NegotiationEnvelope.LengthFieldLength));
+
+        Array.Resize(ref message, NegotiationEnvelope.PrefixLength + lengthValue);
+        await stream
+            .ReadExactlyAsync(message.AsMemory(NegotiationEnvelope.PrefixLength, lengthValue),
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return message;
     }
 }

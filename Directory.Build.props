@@ -4,6 +4,13 @@
         <Nullable>enable</Nullable>
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
         <NeutralLanguage>en</NeutralLanguage>
+
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+        <!-- NU5104 (stable package depending on prerelease DALib) is emitted by `pack`, not
+             `build`; demoted rather than suppressed so it keeps printing until DALib ships
+             stable and this line can go. -->
+        <WarningsNotAsErrors>$(WarningsNotAsErrors);NU5104</WarningsNotAsErrors>
     </PropertyGroup>
 
     <PropertyGroup>

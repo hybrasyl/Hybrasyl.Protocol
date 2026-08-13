@@ -26,7 +26,7 @@ public class TlsProbeTests
     [Theory]
     [InlineData(0x00)]
     [InlineData(0x10)] // a retail opcode without its 0xAA frame marker
-    [InlineData(0xB0)] // a dialect signature is never byte 0 pre-TLS
+    [InlineData(0xB0)] // a dialect is never byte 0 pre-TLS
     [InlineData(0xFF)]
     public void AnythingElse_IsInvalid(byte first)
     {

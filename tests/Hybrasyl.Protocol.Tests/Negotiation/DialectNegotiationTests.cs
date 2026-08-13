@@ -13,8 +13,45 @@ public class DialectNegotiationTests
 
         DialectOffer.TryRead(offer.ToBytes(), out var read, out var consumed).Should().BeTrue();
         read.Should().Be(offer);
-        consumed.Should().Be(2);
+        consumed.Should().Be(NegotiationEnvelope.HeaderLength + DialectOffer.PayloadLength);
         read.Min.Should().Be(Dialect.V1);
+    }
+
+    [Fact]
+    public void DialectOffer_ExactWireLayout_IsEnvelopeThenRange()
+    {
+        // [0xFF marker][u16 length = type + 2][0x00 DialectOffer][min][max]
+        new DialectOffer(0xB0, 0xB2).ToBytes()
+            .Should().Equal(0xFF, 0x00, 0x03, 0x00, 0xB0, 0xB2);
+    }
+
+    [Fact]
+    public void DialectChoice_ExactWireLayout_IsEnvelopeThenPayload()
+    {
+        // [0xFF][u16 length = type + dialect + string8][0x01 DialectChoice][dialect][len]["ab"]
+        new DialectChoice(Dialect.V1, "ab").ToBytes()
+            .Should().Equal(0xFF, 0x00, 0x05, 0x01, 0xB0, 0x02, 0x61, 0x62);
+    }
+
+    [Fact]
+    public void Negotiation_MessagesAreDistinguishedByType_NotByPosition()
+    {
+        // The point of the type byte: a reader handed the wrong message rejects it rather than
+        // parsing whatever arrived as whatever it expected next.
+        var choiceBytes = new DialectChoice(Dialect.V1, "v").ToBytes();
+
+        var act = () => DialectOffer.TryRead(choiceBytes, out _, out _);
+
+        act.Should().Throw<InvalidDataException>().WithMessage("*type 0x01*expected 0x00*");
+    }
+
+    [Fact]
+    public void Negotiation_NonMarkerFirstByte_Throws()
+    {
+        var act = () => DialectOffer.TryRead(new byte[] { 0xAA, 0x00, 0x03, 0x00, 0xB0, 0xB0 },
+            out _, out _);
+
+        act.Should().Throw<InvalidDataException>().WithMessage("*starts 0xAA*expected the 0xFF*");
     }
 
     [Fact]
@@ -36,9 +73,11 @@ public class DialectNegotiationTests
     }
 
     [Fact]
-    public void DialectOffer_InvalidSignature_Throws()
+    public void DialectOffer_InvalidDialect_Throws()
     {
-        var act = () => DialectOffer.TryRead(new byte[] { 0xAA, 0xB0 }, out _, out _);
+        var act = () => DialectOffer.TryRead(
+            NegotiationEnvelope.Write(NegotiationMessageType.DialectOffer, [0xAA, 0xB0]),
+            out _, out _);
 
         act.Should().Throw<InvalidDataException>().WithMessage("*out of range*");
     }
@@ -46,9 +85,23 @@ public class DialectNegotiationTests
     [Fact]
     public void DialectOffer_FloorAboveCeiling_Throws()
     {
-        var act = () => DialectOffer.TryRead(new byte[] { 0xB2, 0xB0 }, out _, out _);
+        var act = () => DialectOffer.TryRead(
+            NegotiationEnvelope.Write(NegotiationMessageType.DialectOffer, [0xB2, 0xB0]),
+            out _, out _);
 
         act.Should().Throw<InvalidDataException>().WithMessage("*floor*exceeds ceiling*");
+    }
+
+    [Fact]
+    public void DialectOffer_PayloadNotExactlyTwoBytes_Throws()
+    {
+        // The envelope length and the message's own shape must agree; a longer payload is the
+        // dangerous direction, since it would otherwise parse cleanly and discard the excess.
+        var act = () => DialectOffer.TryRead(
+            NegotiationEnvelope.Write(NegotiationMessageType.DialectOffer, [0xB0, 0xB2, 0xB4]),
+            out _, out _);
+
+        act.Should().Throw<InvalidDataException>().WithMessage("*payload is 3 bytes*expected exactly 2*");
     }
 
     [Fact]
@@ -82,12 +135,26 @@ public class DialectNegotiationTests
     }
 
     [Fact]
-    public void DialectChoice_InvalidSignature_Throws()
+    public void DialectChoice_InvalidDialect_Throws()
     {
-        // signature 0xAA, version length 0
-        var act = () => DialectChoice.TryRead(new byte[] { 0xAA, 0x00 }, out _, out _);
+        // dialect 0xAA, version length 0
+        var act = () => DialectChoice.TryRead(
+            NegotiationEnvelope.Write(NegotiationMessageType.DialectChoice, [0xAA, 0x00]),
+            out _, out _);
 
         act.Should().Throw<InvalidDataException>().WithMessage("*out of range*");
+    }
+
+    [Fact]
+    public void DialectChoice_EnvelopeAndString8LengthsDisagree_Throws()
+    {
+        // The string8 claims 4 version bytes but the envelope carries none: two fields describing
+        // the same boundary, and a reader must not pick one and trust it.
+        var act = () => DialectChoice.TryRead(
+            NegotiationEnvelope.Write(NegotiationMessageType.DialectChoice, [0xB0, 0x04]),
+            out _, out _);
+
+        act.Should().Throw<InvalidDataException>().WithMessage("*implies 6*");
     }
 
     [Fact]

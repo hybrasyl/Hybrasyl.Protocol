@@ -4,10 +4,11 @@
         <Title>Hybrasyl Extended Framing</Title>
         <Description>The Hybrasyl extended-framing protocol dialect: a negotiated extension layered beside retail DOOMVAS v1 (DALib), carried over TLS 1.3. Shared by the Hybrasyl server and Brigid.</Description>
         <Authors>Hybrasyl contributors</Authors>
-        <PackageLicenseExpression>LGPL-3.0-or-laterr</PackageLicenseExpression>
+        <PackageLicenseExpression>LGPL-3.0-or-later</PackageLicenseExpression>
         <RepositoryUrl>https://github.com/hybrasyl/Hybrasyl.Protocol</RepositoryUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <Tags>hybrasyl; doomvas; darkages; protocol;</Tags>
-        <Version>0.0.2</Version>
+        <Version>0.0.3</Version>
         <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
         <IsPackable>true</IsPackable>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -15,6 +16,15 @@
         <IncludeSymbols>true</IncludeSymbols>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../../README.md" Pack="true" PackagePath="/" />
+        <!-- The wire contract travels with the package: a consumer coding against these frames
+             needs the byte layouts, not just the API surface. ALLOCATIONS ships alongside it
+             because EXTENSIONS links to it for every opcode and negotiation type. -->
+        <None Include="../../docs/EXTENSIONS.md" Pack="true" PackagePath="docs/" />
+        <None Include="../../docs/ALLOCATIONS.md" Pack="true" PackagePath="docs/" />
+    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="DALib" Condition="'$(UseLocalDALib)' != 'true'" />

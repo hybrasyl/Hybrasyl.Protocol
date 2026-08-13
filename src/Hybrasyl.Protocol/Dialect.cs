@@ -1,8 +1,8 @@
 namespace Hybrasyl.Protocol;
 
 /// <summary>
-///     A Hybrasyl extended-framing dialect version. The wire <em>signature byte is the dialect
-///     version</em>: there is exactly one signature per dialect, allocated upward from
+///     A Hybrasyl extended-framing dialect version. The wire <em>dialect byte is the dialect
+///     version</em>: one byte per version, allocated upward from
 ///     <c>0xB0</c>. Retail DOOMVAS v1 framing (<c>0xAA</c>) is not a dialect and is not
 ///     represented here - it is DALib's domain.
 /// </summary>
@@ -19,6 +19,6 @@ namespace Hybrasyl.Protocol;
 /// </remarks>
 public enum Dialect : byte
 {
-    /// <summary>Dialect version 1 - wire signature <c>0xB0</c>.</summary>
+    /// <summary>Dialect version 1 - wire byte <c>0xB0</c>.</summary>
     V1 = 0xB0,
 }

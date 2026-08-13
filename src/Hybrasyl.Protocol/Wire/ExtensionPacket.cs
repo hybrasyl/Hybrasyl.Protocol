@@ -5,8 +5,9 @@ namespace Hybrasyl.Protocol.Wire;
 
 /// <summary>
 ///     Abstract base record for a native extension packet whose single shape travels in
-///     <em>both</em> directions - the symmetric-exchange case (e.g. Ping/Pong). A concrete packet
-///     carries <em>both</em> <see cref="ExtensionClientOpcodeAttribute" /> and
+///     <em>both</em> directions - typically an exchange whose reply is the same shape as its
+///     request, such as <c>ClientEcho</c>. A concrete packet carries <em>both</em>
+///     <see cref="ExtensionClientOpcodeAttribute" /> and
 ///     <see cref="ExtensionServerOpcodeAttribute" /> (same opcode number), registering the one
 ///     type in each direction's dispatch table.
 /// </summary>
