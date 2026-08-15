@@ -601,7 +601,7 @@ There is no in-band fix. The mitigation is memory held by the client:
   treat the absence as hostile and warn before any credential flow, rather than falling
   back silently.
 - This store SHOULD be shared with the certificate pins of §8.4, which are keyed by the
-  same endpoint identity.
+  same server identity (§8.4.1).
 
 First contact remains strippable; every connection after it is protected. This belongs
 to the client: the library never sees the credential flow and holds no cross-session
@@ -642,10 +642,10 @@ go silent after the greeting.
 - **Trust-on-first-use fallback.** Where validation fails — self-signed, unknown CA,
   hostname mismatch, and therefore localhost, development, and self-hosted servers — a
   client SHOULD present the certificate's subject, issuer, and SHA-256 fingerprint and
-  ask whether to trust it for that `host:port`. On acceptance the client MUST pin the
-  fingerprint, keyed by endpoint. A **changed** certificate for a pinned endpoint MUST
-  re-prompt. Without this, localhost and any server lacking a public certificate could
-  not use TLS at all.
+  ask whether to trust it for that **server identity** (§8.4.1). On acceptance the client
+  MUST pin the fingerprint, keyed by that identity. A **changed** certificate for a pinned
+  identity MUST re-prompt. Without this, localhost and any server lacking a public
+  certificate could not use TLS at all.
 - **Pre-pinned production certificates.** A client distribution SHOULD ship with its
   flagship server's production fingerprint pinned, so the common path never sees a
   trust dialog and is protected even against a mis-issued public certificate for that
@@ -653,6 +653,40 @@ go silent after the greeting.
 - **Limitation.** A trust-on-first-use connection is subject to interception if the user
   accepts a substituted certificate. The operator's mitigation is a published
   fingerprint; pinning protects every connection after the first.
+
+#### 8.4.1 Server identity
+
+The **server identity** is the host a certificate is validated against: the name sent as
+SNI, the name matched against the certificate's subject and SANs, and the key a pin is
+stored under. It does **not** include the port. A certificate is bound to a hostname; the
+port selects a service on that host and participates in no part of validation.
+
+**A session's three hops are one identity.** Keying pins by `host:port` asks the user to
+vouch for the same certificate once per hop — three prompts per session for a single
+decision — which trains exactly the click-through the prompt exists to resist. Keying by
+host narrows the prompting and not the checking: a different certificate presented on
+another port of the same host still fails to match the pin and still re-prompts.
+
+**A redirect hop inherits the lobby's identity when it resolves to it.** The `0x03`
+redirect carries an IPv4 address and no name (§3.2), and an IP literal matches no
+ordinary certificate — so a client that took the redirect address as the identity would
+fall to trust-on-first-use on every hop after the lobby, for a server it has already
+authenticated. A client therefore:
+
+- MUST dial the address the redirect gave, which is the server's routing decision;
+- SHOULD validate and pin against the lobby's host when that address is among the
+  addresses the lobby host resolves to; and
+- MUST otherwise treat the hop as its own identity, so a redirect that leaves the server
+  is not silently validated against the name of the one that issued it.
+
+DNS is not an authentication input in this rule. It selects *which name* is put to the
+certificate check; a resolver that lies produces a name the presented certificate does
+not match, or a fingerprint that does not match the pin, and the hop is refused on that
+evidence rather than on the lookup.
+
+*Changed 2026-08-15. This section previously specified pinning keyed by `host:port`.
+Brigid implemented that first; three trust prompts per session for one certificate is
+what sent it back.*
 
 ### 8.5 TLS parameters
 
@@ -771,6 +805,8 @@ inbound frames by byte 0.
 **Clients.** A client MUST wait for the lobby greeting before speaking, scan it for the
 marker, and upgrade only where the marker was seen. It MUST carry the capability bit
 across the session's later hops, answer the `DialectOffer` with a `DialectChoice`,
-validate certificates per §8.4, and maintain the downgrade memory of §8.2. Extension
-state, the TLS upgrade, and the certificate trust store are per-connection and MUST be
-reset on disconnect.
+validate certificates per §8.4 against the server identity of §8.4.1, and maintain the
+downgrade memory of §8.2. Extension state and the TLS upgrade are per-connection and MUST
+be reset on disconnect. The certificate pins and the downgrade memory are not: they are
+cross-session by construction, and clearing them on disconnect would discard the only
+mitigation §8.2 has against a stripped marker.
