@@ -178,5 +178,47 @@ allocation rule exists to prevent. They are not carried into any dialect.
 
 ### Block 0–3 — retail mirror (`0x0000`–`0x00FF`)
 
-No allocations. A retail opcode enters this space only when an extension type
-explicitly replaces it.
+A retail opcode enters this space only when an extension type explicitly replaces it.
+
+| Opcode | Since | Name | Direction | Body |
+|---|---|---|---|---|
+| `0x0008` | `0xB0` | Attributes | S → C | `[u32 blockFlags][blocks…]` |
+
+**Attributes.** Replaces retail `0x08` for the duration of a negotiated connection.
+Retail framing is unaffected, and a server SHOULD keep emitting retail `0x08` alongside
+it so that path stays exercised rather than running only when the dialect has failed.
+
+`blockFlags` selects blocks and nothing else; blocks follow in ascending bit order.
+Retail's flag byte also carried standalone state (`UnreadMail`, movement mode), which
+here lives in the Status block. All eight retail flag bits were allocated, which is why
+the field is `u32`.
+
+| Bit | Block | Size |
+|---|---|---|
+| `0x01` | Primary — level, ability, max HP/MP, str/int/wis/con/dex, level points, weight | 44 |
+| `0x02` | Vitals — hp, mp (`u32` each) | 8 |
+| `0x04` | Experience — experience, expToLevel, abilityExp, abilityToNext, gold (`u64`), gamePoints (`u32`) | 44 |
+| `0x08` | Combat — ac (`i32`), mr/dmg/hit (`f64`), offensive and defensive element as effective/base/override (`u8`) | 34 |
+| `0x10` | Status — movementMode, blinded, hasUnreadMail, hasParcel (`u8`) | 4 |
+| `0x20` | ExtendedStats — `[u16 count][(u16 statId, f64 value) × count]` | 2 + 10·n |
+
+An unknown `blockFlags` bit is a protocol error, not a skip: fixed-size blocks cannot be
+skipped without knowing their size. **Adding a block therefore requires a dialect
+version bump; adding a stat id does not.** ExtendedStats exists so the dialect rarely has
+to move — its records are a fixed 10 bytes precisely so an unknown `statId` *is*
+skippable.
+
+ExtendedStats is a full snapshot within the block: absent means unchanged, present means
+the receiver's extended state is replaced wholesale. Partial sends are safe for the fixed
+blocks only because that set is closed, so "absent" can mean just one thing. An open field
+set has no such guarantee — a missing id would be ambiguous between unchanged, no longer
+applicable, and unknown to this sender.
+
+`statId` indexes a shared enum in this package. Units are a property of the id, not of the
+wire: multipliers, probabilities and flat ratings are all `f64`. Ids are permanent once
+shipped, exactly like opcodes.
+
+Retail `0x08` quantized several of these — `mr`/`dmg`/`hit` as a byte centred on 128 at
+×800, primary stats as `u8`, `ac` as `sbyte`. Those widths had become caps on what the
+game could express rather than limits on precision, which is the main reason this
+replacement exists.
