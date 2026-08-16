@@ -74,7 +74,7 @@ Blocks appear in ascending bit order. A sender MUST NOT reorder them.
 | `u64` | abilityExp |
 | `u64` | abilityToNext |
 | `u64` | gold |
-| `u32` | gamePoints |
+| `i32` | gamePoints |
 
 ### Combat — `0x08`, 34 bytes
 
@@ -133,9 +133,9 @@ is an incidental side effect of a non-zero mode, not its purpose.
 packed the latter two as two nibbles of a single byte, decoded only when a separate flag
 bit was also set; that cross-field dependency does not survive here.
 
-`levelPoints` is the count of unspent points. Retail carried a separate "has level points"
-boolean alongside it; `levelPoints > 0` states the same fact, and a second source of truth
-for it is a defect waiting to happen.
+`levelPoints` is the count of unspent stat points. Retail carried a separate 
+"has level points" boolean alongside it; `levelPoints > 0` states the same fact, and 
+a second source of truth for it is a defect waiting to happen.
 
 `statId` in ExtendedStats indexes the shared stat enum in this package. **An id is
 permanent once shipped**, exactly like an opcode.
@@ -221,21 +221,15 @@ all-or-nothing.
 
 ## Notes on what changed from retail
 
-Retail `0x08` is documented at rung 1 in Comhaigne,
-`docs/protocol/server/0x08-attributes.md`, pinned at
-`023d886130b547e903b9ee42e977859075f91d70` (verified from the USDA binary 2026-04-21). Two
-properties of that packet drove this replacement:
+Two properties of the packet this replaces drove the redesign.
 
-**About 27% of it is dead or zero-filled.** Byte-pattern search of the retail client finds
-no reader for Primary's `{1,0,0}` magic, Primary's trailing `u32`, four Secondary bytes, or
-flag bit `0x02`; a further nine bytes are fields Hybrasyl fills with zero. None are carried
+**Roughly a quarter of it carried nothing.** Several fields are inert — a three-byte
+constant header, a trailing word, four bytes in the secondary section, and one flag bit —
+and a further nine bytes are fields Hybrasyl has always filled with zero. None are carried
 here.
 
 **Its field widths had become balance ceilings rather than precision limits.** The byte
 ratings capped `mr`/`dmg`/`hit` near ±0.16; primary stats were `u8`, so a configured cap
-above 255 would silently wrap; `ac` was `sbyte`. Widening these removes design constraints
-inherited from 1997 bandwidth, which is the main reason this packet exists at all.
-
-The full analysis, including the rationale for each field and the evidence behind the
-dead-byte inventory, is in Comhaigne at
-`docs/plans/brigid/BRIG-53-attributes-replacement-contract.md`.
+above 255 would silently wrap; `ac` was `sbyte`. Those widths were reasonable when
+bandwidth was the binding constraint and are now limits on what the game can express, which
+is the main reason this packet exists at all.

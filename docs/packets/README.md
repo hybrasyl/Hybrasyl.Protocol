@@ -24,14 +24,10 @@ where S→C `0x08` and C→S `0x08` are unrelated packets.
 
 ## These documents are prescriptive
 
-This is the difference that matters, and it is easy to get wrong by copying the retail
-reference in Comhaigne.
+A reference for a protocol somebody else defined can only be *descriptive* — you record
+what it does, because you cannot change it and are not entitled to say what it ought to do.
 
-Those files are **archaeology**. They describe a binary nobody here controls, so their
-value is in observations — *this cache has no reader*, *this byte is dead*. Description is
-the only thing available.
-
-Extension packets have no third party. We write both ends. A document that describes what
+This protocol is ours, and we write both ends. A document that describes what
 our implementation currently does is unfalsifiable: the implementation cannot disagree with
 it, and the file decays into a changelog of itself.
 
@@ -91,3 +87,28 @@ Dialect version each change landed in.
 A body layout is specified in exactly one place — here. The registry's body column is a
 lookup aid, not a second definition; when they disagree, this wins and the registry is
 wrong.
+
+## What does not belong in this repository
+
+**This repository is public. The analysis of the retail protocol that informs these
+documents is not.**
+
+Keep out of every file here:
+
+- Internal source-grading or confidence vocabulary.
+- How a third-party binary was examined, what tooling was used, or its filename. Function
+  addresses, symbol names and search methods included.
+- Paths, commit hashes or links into private repositories — a citation nobody outside can
+  follow is worse than none, because it looks checkable.
+- Internal tracker identifiers.
+
+Keep in:
+
+- What the wire looks like, and what an implementation must do with it.
+- A plain statement that a retail field is unused, or that a width is limiting, **where it
+  explains a design decision here**. The conclusion earns its place; the provenance does
+  not travel.
+
+The test: *could a reader outside the project act on this sentence?* If it only tells them
+how we came to know something, cut it. The detailed reasoning has a home already, and this
+is not it.

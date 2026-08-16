@@ -79,6 +79,5 @@ Hybrasyl server registers a handler that logs an inbound reply but **never initi
 probe** — there is no send site outside tests. A client is still required to answer if one
 arrives; the exchange is specified, and only the server's probe side is unbuilt.
 
-Tracked as HS-1599, where the open decision is whether to wire the server-initiated
-direction or drop it and remove the receive-side handler so the asymmetry is not mistaken
-for an oversight.
+The open decision there is whether to wire the server-initiated direction or drop it and
+remove the receive-side handler, so the asymmetry is not later mistaken for an oversight.
