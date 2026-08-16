@@ -155,70 +155,35 @@ The marker MUST NOT carry the dialect range; the range belongs inside TLS.
 
 ## 6. Packet registry
 
-### Block 4 — system / infrastructure (`0x0100`–`0x013F`)
+The full contract for each exchange — field semantics, receiver requirements, malformed
+input, forward compatibility — lives in [`packets/`](packets/README.md), one file per
+exchange. **This section is a lookup table.** The body column is a hint for readers
+scanning the registry; where it disagrees with a packet document, the packet document
+wins and this table is wrong.
+
+### Block 4 — system / infrastructure (`0x0100`-`0x013F`)
 
 | Opcode | Since | Name | Probe | Reply | Body |
 |---|---|---|---|---|---|
-| `0x0100` | `0xB0` | ClientEcho | C → S | S → C | `[u64 token]` |
-| `0x0101` | `0xB0` | ServerEcho | S → C | C → S | `[u64 token]` |
+| `0x0100` | `0xB0` | [ClientEcho](packets/system/ClientEcho.md) | C → S | S → C | `[u64 token]` |
+| `0x0101` | `0xB0` | [ServerEcho](packets/system/ServerEcho.md) | S → C | C → S | `[u64 token]` |
 
 **Next free: `0x0102`.**
 
-**ClientEcho / ServerEcho.** The liveness exchanges, one per initiator. The responder
-MUST echo the token verbatim, at the same opcode, in the opposite direction. The token
-is opaque to the responder; an initiator typically uses its own monotonic clock ticks,
-so round-trip time falls out of the reply with no wire timestamps and no clock
-synchronisation. Interval and timeout policy are the consumer's concern.
+The liveness exchanges, one per initiator — separate exchanges because either end may
+initiate, per §2, not a request and a differently-numbered reply. `0x0100` is always
+answered by `0x0100`. They replace retail's `0x45`/`0x75` heartbeats, whose asymmetry is
+exactly what the allocation rule exists to prevent; retail heartbeats are not carried into
+any dialect.
 
-The two are separate exchanges because either end may initiate, per §2 — not a request
-and a differently-numbered reply. `0x0100` is always answered by `0x0100`.
-
-These replace retail's `0x45`/`0x75` heartbeats, whose asymmetry is exactly what the
-allocation rule exists to prevent. They are not carried into any dialect.
-
-### Block 0–3 — retail mirror (`0x0000`–`0x00FF`)
+### Blocks 0-3 — retail mirror (`0x0000`-`0x00FF`)
 
 A retail opcode enters this space only when an extension type explicitly replaces it.
 
 | Opcode | Since | Name | Direction | Body |
 |---|---|---|---|---|
-| `0x0008` | `0xB0` | Attributes | S → C | `[u32 blockFlags][blocks…]` |
+| `0x0008` | `0xB0` | [Attributes](packets/retail-mirror/Attributes.md) | S → C | `[u32 blockFlags][blocks…]` |
 
-**Attributes.** Replaces retail `0x08` for the duration of a negotiated connection.
-Retail framing is unaffected, and a server SHOULD keep emitting retail `0x08` alongside
-it so that path stays exercised rather than running only when the dialect has failed.
-
-`blockFlags` selects blocks and nothing else; blocks follow in ascending bit order.
-Retail's flag byte also carried standalone state (`UnreadMail`, movement mode), which
-here lives in the Status block. All eight retail flag bits were allocated, which is why
-the field is `u32`.
-
-| Bit | Block | Size |
-|---|---|---|
-| `0x01` | Primary — level, ability, max HP/MP, str/int/wis/con/dex, level points, weight | 44 |
-| `0x02` | Vitals — hp, mp (`u32` each) | 8 |
-| `0x04` | Experience — experience, expToLevel, abilityExp, abilityToNext, gold (`u64`), gamePoints (`u32`) | 44 |
-| `0x08` | Combat — ac (`i32`), mr/dmg/hit (`f64`), offensive and defensive element as effective/base/override (`u8`) | 34 |
-| `0x10` | Status — movementMode, blinded, hasUnreadMail, hasParcel (`u8`) | 4 |
-| `0x20` | ExtendedStats — `[u16 count][(u16 statId, f64 value) × count]` | 2 + 10·n |
-
-An unknown `blockFlags` bit is a protocol error, not a skip: fixed-size blocks cannot be
-skipped without knowing their size. **Adding a block therefore requires a dialect
-version bump; adding a stat id does not.** ExtendedStats exists so the dialect rarely has
-to move — its records are a fixed 10 bytes precisely so an unknown `statId` *is*
-skippable.
-
-ExtendedStats is a full snapshot within the block: absent means unchanged, present means
-the receiver's extended state is replaced wholesale. Partial sends are safe for the fixed
-blocks only because that set is closed, so "absent" can mean just one thing. An open field
-set has no such guarantee — a missing id would be ambiguous between unchanged, no longer
-applicable, and unknown to this sender.
-
-`statId` indexes a shared enum in this package. Units are a property of the id, not of the
-wire: multipliers, probabilities and flat ratings are all `f64`. Ids are permanent once
-shipped, exactly like opcodes.
-
-Retail `0x08` quantized several of these — `mr`/`dmg`/`hit` as a byte centred on 128 at
-×800, primary stats as `u8`, `ac` as `sbyte`. Those widths had become caps on what the
-game could express rather than limits on precision, which is the main reason this
-replacement exists.
+Replaces retail `0x08` for the duration of a negotiated connection. Retail framing is
+unaffected, and a server SHOULD keep emitting retail `0x08` alongside it so that path stays
+exercised rather than running only when the dialect has failed.
