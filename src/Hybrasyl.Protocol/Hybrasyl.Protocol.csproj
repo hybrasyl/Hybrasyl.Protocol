@@ -24,6 +24,7 @@
              because EXTENSIONS links to it for every opcode and negotiation type. -->
         <None Include="../../docs/EXTENSIONS.md" Pack="true" PackagePath="docs/" />
         <None Include="../../docs/ALLOCATIONS.md" Pack="true" PackagePath="docs/" />
+        <None Include="../../docs/packets/**/*.md" Pack="true" PackagePath="docs/packets/" />
     </ItemGroup>
 
     <ItemGroup>
