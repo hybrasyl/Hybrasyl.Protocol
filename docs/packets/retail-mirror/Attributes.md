@@ -108,9 +108,9 @@ Blocks appear in ascending bit order. A sender MUST NOT reorder them.
 
 ## Field semantics
 
-**Units live in this document and in the stat enum, never on the wire.** A multiplier, a
-probability and a flat rating are all `f64`; what one means is a property of its field or
-its `statId`.
+**Units live in this document and in the registry that allocates the id, never on the
+wire.** A multiplier, a probability and a flat rating are all `f64`; what one means is a
+property of its field or its `statId`.
 
 `mr`, `dmg`, `hit` are multipliers centred on 1.0 — `1.05` is a 5% bonus. They are sent raw
 rather than as retail's byte rating quantized around 128 at ×800, which capped the
@@ -129,6 +129,11 @@ override are carried for breakdown display only.
 entity collision validation; modes 0 and 3 apply normal collision.** A swimming animation
 is an incidental side effect of a non-zero mode, not its purpose.
 
+**Values 4–255 are reserved, and a receiver MUST reject the packet rather than ignore
+them.** This field selects collision behaviour, so a receiver that dropped an unrecognised
+mode would silently apply collision where the sender meant it bypassed — the wrong value
+applied confidently, with no error at either end. A sender MUST NOT emit a reserved mode.
+
 `blinded`, `hasUnreadMail`, `hasParcel` are booleans: `0` false, non-zero true. Retail
 packed the latter two as two nibbles of a single byte, decoded only when a separate flag
 bit was also set; that cross-field dependency does not survive here.
@@ -137,8 +142,15 @@ bit was also set; that cross-field dependency does not survive here.
 "has level points" boolean alongside it; `levelPoints > 0` states the same fact, and 
 a second source of truth for it is a defect waiting to happen.
 
-`statId` in ExtendedStats indexes the shared stat enum in this package. **An id is
-permanent once shipped**, exactly like an opcode.
+`statId` is **opaque to this protocol**. Ids are allocated by the application rather than by
+this document, and both ends of a connection MUST resolve them from one registry. **An id is
+permanent once allocated**, exactly like an opcode.
+
+One registry is a requirement rather than a recommendation because disagreement here is
+silent. An *unrecognised* id is skipped and nothing is lost; an id two ends define
+*differently* decodes cleanly and renders the wrong value, with no error raised anywhere.
+That is the failure this rule exists to prevent, and it is why the units for an id belong
+with its allocation.
 
 ## Receiver requirements
 
@@ -176,6 +188,7 @@ The body is invalid, and the packet MUST be rejected, when:
 - Its length is not exactly `4 + Σ(sizes of present fixed blocks) + extendedBlockSize`.
 - An ExtendedStats block is present and does not consume exactly `2 + 10·count` bytes
   ending on the body boundary.
+- A Status block is present and its `movementMode` is greater than 3.
 - **Any reserved `blockFlags` bit is set.**
 
 That last one deserves emphasis, because it is the opposite of the ExtendedStats rule and
@@ -206,6 +219,10 @@ stat is free.
 **Changing an existing block's layout requires a dialect version bump.** Fields cannot be
 appended to a block in place — the sizes above are exact and a receiver validates against
 them.
+
+**Allocating a further `movementMode` requires a dialect version bump**, for the same reason
+a new block does: reserved values are rejected rather than skipped, so a V1 receiver cannot
+be shown one.
 
 The closed-block/open-field split is the design, not an accident of it. Partial sends are
 safe for the fixed blocks *only because that set is closed*, so "absent" can mean exactly
