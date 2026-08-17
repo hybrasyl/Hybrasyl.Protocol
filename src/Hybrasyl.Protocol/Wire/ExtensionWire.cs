@@ -38,6 +38,17 @@ public static class ExtensionWire
         writer.WriteBytes(bytes);
     }
 
+    /// <summary>Writes a big-endian IEEE 754 <c>f64</c>.</summary>
+    /// <exception cref="ArgumentNullException"><paramref name="writer" /> is null.</exception>
+    public static void WriteDouble(this IPacketWriter writer, double value)
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+
+        Span<byte> bytes = stackalloc byte[sizeof(double)];
+        BinaryPrimitives.WriteDoubleBigEndian(bytes, value);
+        writer.WriteBytes(bytes);
+    }
+
     /// <summary>Reads a big-endian <c>u64</c>.</summary>
     /// <exception cref="InvalidOperationException">Fewer than eight bytes remain.</exception>
     public static ulong ReadUInt64(this ref PacketReader reader) =>
@@ -47,4 +58,9 @@ public static class ExtensionWire
     /// <exception cref="InvalidOperationException">Fewer than eight bytes remain.</exception>
     public static long ReadInt64(this ref PacketReader reader) =>
         BinaryPrimitives.ReadInt64BigEndian(reader.ReadBytes(sizeof(long)));
+
+    /// <summary>Reads a big-endian IEEE 754 <c>f64</c>.</summary>
+    /// <exception cref="InvalidOperationException">Fewer than eight bytes remain.</exception>
+    public static double ReadDouble(this ref PacketReader reader) =>
+        BinaryPrimitives.ReadDoubleBigEndian(reader.ReadBytes(sizeof(double)));
 }

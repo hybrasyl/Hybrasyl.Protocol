@@ -30,6 +30,15 @@ namespace Hybrasyl.Protocol.Wire;
 /// </remarks>
 public static class ExtensionOpcodes
 {
+    // Retail mirror: 0x0000-0x00FF
+
+    /// <summary>
+    ///     The player's stats, vitals, experience and combat values: S-&gt;C. Replaces retail
+    ///     <c>0x08</c> for the duration of a negotiated connection, so it keeps that number
+    ///     zero-extended.
+    /// </summary>
+    public const ushort Attributes = 0x0008;
+
     // System / infrastructure: 0x0100-0x013F
 
     /// <summary>Client-initiated liveness exchange: probe C-&gt;S, reply S-&gt;C.</summary>

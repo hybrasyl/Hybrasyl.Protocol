@@ -79,13 +79,15 @@ public class ExtensionCodecTests
     {
         // The default codec composes no retail packets — un-migrated retail travels as literal
         // 0xAA frames on DALib's path, never through the extension codec. Only sreang's own
-        // declared packets register: ClientEcho and ServerEcho, each in both directions.
+        // declared packets register: ClientEcho and ServerEcho in both directions, and
+        // Attributes server-to-client.
         var sreangOnly = new ExtensionCodec();
-        sreangOnly.RegisteredServerOpcodeCount.Should().Be(2);
+        sreangOnly.RegisteredServerOpcodeCount.Should().Be(3);
         sreangOnly.RegisteredClientOpcodeCount.Should().Be(2);
 
         var withTests = TestCodec.WithTestPackets();
-        withTests.RegisteredServerOpcodeCount.Should().BeGreaterThan(2);
+        withTests.RegisteredServerOpcodeCount.Should()
+            .BeGreaterThan(sreangOnly.RegisteredServerOpcodeCount);
     }
 
     [Fact]
