@@ -122,13 +122,19 @@ regardless of its contents, which is what makes the greeting a safe carrier -- a
 what makes the banner a server's choice rather than a protocol constant. No single
 value is normative.
 
-Observed values, none of them required:
+Observed values. All four agree on the text and differ only in the terminator, which
+is the part no implementation should rely on:
 
 | Source | Banner | Provenance |
 |---|---|---|
+| Retail / commercial | `"CONNECTED SERVER"`, believed unterminated | operator recollection, 2026-09-15: every commercial DA server observed sends this and J believes it carries no terminator. First-hand but **not re-runnable** -- no retail `0x7E` capture is on file. A capture would settle it. |
 | Hybrasyl | `"CONNECTED SERVER\n"` | rung 1 -- `hybrasyl/Servers/Server.cs`, `WriteString("CONNECTED SERVER\n")` |
 | Chaos | `"CONNECTED SERVER\0"` | rung 2 -- `SocketClientBase.SendAcceptConnection`, `WriteString("CONNECTED SERVER", terminate: true)`, quoted in Comhaigne `docs/protocol/server/0x7E-town-map.md`; Chaos server source not read here |
-| DALib | `"CONNECTED SERVER"` | rung 1 -- `AcceptConnectionPacket.Message` default; models the banner terminator-less |
+| DALib | `"CONNECTED SERVER"` | rung 1 -- `AcceptConnectionPacket.Message` default; models the banner terminator-less, matching the retail row deliberately |
+
+The retail row is why the marker needs a leading delimiter at all: against an
+unterminated banner there is no other boundary to find. The two reimplementation rows
+are why a reader cannot assume one.
 
 The marker is appended after the greeting body:
 
@@ -137,8 +143,9 @@ The marker is appended after the greeting body:
 ```
 
 - Total length 6 bytes. The leading `0x00` delimits the binary marker from whatever
-  banner precedes it, terminated or not. `"HYB"` is legible in a capture and is not
-  emitted by retail or by third-party servers.
+  banner precedes it, terminated or not -- necessary because the retail banner is
+  believed to carry no terminator of its own. `"HYB"` is legible in a capture and is
+  not emitted by retail or by third-party servers.
 - `markerVersion` versions the marker envelope only. It is **not** a dialect number.
   A client that sees a `markerVersion` it does not recognise MUST still treat the
   marker's presence as capability and proceed; dialect details are settled inside TLS.
