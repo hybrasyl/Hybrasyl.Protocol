@@ -116,9 +116,19 @@ A capable server MUST signal capability by appending a marker to its existing `0
 (`AcceptConnection`) lobby greeting. No new opcode is allocated.
 
 `0x7E` is already the first server-to-client packet on the lobby connection, sent
-unencrypted on accept, before `0x00`. Its retail body is `[0x1B]"CONNECTED SERVER"`
-(16 characters, no terminator). Retail clients have no `0x7E` handler and ignore the
-packet regardless of its contents, which is what makes the greeting a safe carrier.
+unencrypted on accept, before `0x00`. Its body is `[0x1B]` followed by a
+server-chosen banner. Retail clients have no `0x7E` handler and ignore the packet
+regardless of its contents, which is what makes the greeting a safe carrier -- and
+what makes the banner a server's choice rather than a protocol constant. No single
+value is normative.
+
+Observed values, none of them required:
+
+| Source | Banner | Provenance |
+|---|---|---|
+| Hybrasyl | `"CONNECTED SERVER\n"` | rung 1 -- `hybrasyl/Servers/Server.cs`, `WriteString("CONNECTED SERVER\n")` |
+| Chaos | `"CONNECTED SERVER\0"` | rung 2 -- `SocketClientBase.SendAcceptConnection`, `WriteString("CONNECTED SERVER", terminate: true)`, quoted in Comhaigne `docs/protocol/server/0x7E-town-map.md`; Chaos server source not read here |
+| DALib | `"CONNECTED SERVER"` | rung 1 -- `AcceptConnectionPacket.Message` default; models the banner terminator-less |
 
 The marker is appended after the greeting body:
 
@@ -126,16 +136,16 @@ The marker is appended after the greeting body:
 [0x00] "HYB" [u8 markerVersion] [u8 flags]
 ```
 
-- Total length 6 bytes. The leading `0x00` delimits the binary marker from the ASCII
-  banner, which has no terminator. `"HYB"` is legible in a capture and is not emitted
-  by retail or by third-party servers.
+- Total length 6 bytes. The leading `0x00` delimits the binary marker from whatever
+  banner precedes it, terminated or not. `"HYB"` is legible in a capture and is not
+  emitted by retail or by third-party servers.
 - `markerVersion` versions the marker envelope only. It is **not** a dialect number.
   A client that sees a `markerVersion` it does not recognise MUST still treat the
   marker's presence as capability and proceed; dialect details are settled inside TLS.
 - `flags` is reserved in v1 and MUST be written as zero.
 - Clients MUST detect the marker by scanning the greeting body for the 4-byte magic,
-  not by assuming a fixed offset, so that greeting text may vary between server
-  versions.
+  not by assuming a fixed offset. The banner already varies between the reference
+  servers listed above, so this is a present requirement and not future-proofing.
 
 The marker MUST NOT carry the dialect range. The range belongs inside TLS (§3.4);
 advertising it in cleartext would reintroduce the downgrade surface TLS removes.

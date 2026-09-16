@@ -12,9 +12,10 @@ namespace Hybrasyl.Protocol.Negotiation;
 /// <remarks>
 ///     <para>
 ///         Wire form appended after the greeting body: <c>[0x00]["HYB"][u8 version][u8 flags]</c>.
-///         The leading <c>0x00</c> separates the binary marker from the ASCII banner (which has no
-///         terminator), and <c>"HYB"</c> is legible in a capture. Vanilla/Chaos <c>0x7E</c> never
-///         emits this sequence.
+///         The leading <c>0x00</c> separates the binary marker from the banner, terminated or not
+///         (Hybrasyl emits a trailing newline, Chaos a NUL, DALib neither -- the banner is
+///         server-chosen; see EXTENSIONS.md 3.1), and <c>"HYB"</c> is legible in a capture.
+///         Vanilla/Chaos <c>0x7E</c> never emits this sequence.
 ///     </para>
 ///     <para>
 ///         <see cref="Version" /> versions the marker envelope itself, independently of the
