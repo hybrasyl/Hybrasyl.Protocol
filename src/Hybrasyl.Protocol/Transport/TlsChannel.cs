@@ -183,6 +183,7 @@ public static class TlsChannel
         return $" On macOS the default backend caps at TLS 1.2. Set the '{NetworkFrameworkSwitch}' " +
                "switch, via RuntimeHostConfigurationOption in the project file so it applies before " +
                "SslStream initialises, to select a backend that negotiates TLS 1.3. It governs " +
-               "client connections only; a macOS server cannot negotiate TLS 1.3 at all.";
+               "client connections only and has no server-side equivalent; a macOS server was " +
+               "measured at TLS 1.2.";
     }
 }

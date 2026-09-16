@@ -168,7 +168,7 @@ public class TlsChannelTests
         hint.Should().Contain(TlsChannel.NetworkFrameworkSwitch);
         hint.Should().Contain("RuntimeHostConfigurationOption",
             "setting it in code after SslStream initialises is ignored silently");
-        hint.Should().Contain("server cannot negotiate",
+        hint.Should().Contain("no server-side equivalent",
             "the switch governs client connections only, which is the other half of the trap");
     }
 

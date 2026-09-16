@@ -740,9 +740,9 @@ what sent it back.*
   > the project file so it applies before `SslStream` initialises — negotiates TLS 1.3.
   > Setting it in code after that point is read too late and ignored silently.
   >
-  > It governs **client** connections only. **A macOS server negotiates at most TLS 1.2
-  > and no setting lifts it**, so macOS is a viable client platform for this protocol and
-  > not a viable server one.
+  > It governs **client** connections only. **A macOS server was measured at TLS 1.2, and
+  > this switch has no server-side equivalent to lift it**, so macOS is a viable client
+  > platform for this protocol and not a viable server one.
   >
   > Both halves are measured, on .NET 10.0.2 / macOS 26.5.2 against .NET 10.0.10 / Linux:
   >
@@ -750,8 +750,19 @@ what sent it back.*
   > |---|---|---|
   > | macOS, default backend | public TLS 1.3 host | `Tls12` |
   > | macOS, Network.framework | public TLS 1.3 host | `Tls13` |
-  > | **Linux** | **macOS** | **`Tls12`** |
+  > | **Linux** | **macOS, backend not recorded** | **`Tls12`** |
   > | Linux | Linux | `Tls13` *(control, same client binary, same minute)* |
+  >
+  > Note the gap the third row leaves, since the conclusion quantifies over it: every
+  > *client* cell names its backend and no *server* cell does. What is measured is that a
+  > macOS server capped at 1.2 in that run. Whether a macOS server with
+  > `UseNetworkFramework` set would still cap is **not measured** -- the switch is
+  > documented for client connections, which is why the sentence above claims no
+  > equivalent rather than no possibility. An instrument for it exists at
+  > `~/repos/tls13srv-probe` (an `SslStream` server and client in one process, switch set
+  > before backend init) and needs a Mac to run. It is one-sided: `Tls13` on the SERVER
+  > line refutes the clause outright, while `Tls12` is confounded by the client being
+  > capped too and confirms nothing.
   >
   > The third row is the one that establishes the server limit: that client reaches TLS 1.3
   > against a Linux server seconds either side of the run, is not using Network.framework,
