@@ -60,8 +60,11 @@ public readonly record struct CapabilityMarker(byte Version, CapabilityFlags Fla
     }
 
     /// <summary>
-    ///     Builds the full S-&gt;C <c>0x7E</c> greeting body - the retail-canonical greeting from
-    ///     DALib's <see cref="AcceptConnectionPacket" /> with this marker appended.
+    ///     Builds the full S-&gt;C <c>0x7E</c> greeting body from DALib's
+    ///     <see cref="AcceptConnectionPacket" /> defaults with this marker appended. The default
+    ///     banner is DALib's modelling choice, not a retail constant - the banner is
+    ///     server-chosen and real servers terminate it differently (EXTENSIONS.md 3.1). Servers
+    ///     SHOULD pass their own greeting to the overload below.
     /// </summary>
     public byte[] BuildGreetingBody() => BuildGreetingBody(new AcceptConnectionPacket());
 
