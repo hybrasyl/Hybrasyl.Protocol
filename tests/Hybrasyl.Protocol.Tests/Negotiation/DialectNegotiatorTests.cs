@@ -136,12 +136,24 @@ public class DialectNegotiatorTests
     public async Task PrematureClose_ThrowsEndOfStream()
     {
         var serverAct = () => DialectNegotiator.NegotiateAsServerAsync(
-            new ScriptedStream([0xB0]), ServerV1); // dialect but no length byte
+            new ScriptedStream([0xFF]), ServerV1); // marker but no length field
         var clientAct = () => DialectNegotiator.NegotiateAsClientAsync(
-            new ScriptedStream([0xB0]), new ClientDialectPolicy(Dialect.V1), "v");
+            new ScriptedStream([0xFF]), new ClientDialectPolicy(Dialect.V1), "v");
 
         await serverAct.Should().ThrowAsync<EndOfStreamException>();
         await clientAct.Should().ThrowAsync<EndOfStreamException>();
+    }
+
+    [Fact]
+    public async Task PrematureClose_AfterAValidPrefix_ThrowsEndOfStream()
+    {
+        // length 5 = type + dialect + string8 length + two version bytes; the peer closes one byte
+        // short. A reader that zero-fills instead of throwing would accept version "a\0".
+        var stream = new ScriptedStream([0xFF, 0x00, 0x05, 0x01, 0xB0, 0x02, 0x61]);
+
+        var act = () => DialectNegotiator.NegotiateAsServerAsync(stream, ServerV1);
+
+        await act.Should().ThrowAsync<EndOfStreamException>();
     }
 
     /// <summary>
